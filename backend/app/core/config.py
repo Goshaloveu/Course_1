@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     # --- Настройки SQLite ---
     # Файл будет создан в директории backend/sqlitedb/
     # SQLITE_DB_FILE: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'sqlitedb', 'database.db')
+    # Поднимаемся на ТРИ уровня от backend/app/core/ чтобы попасть в корень Course_1
     SQLITE_DB_FILE: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "users.db")
 
     @computed_field # type: ignore[prop-decorator]

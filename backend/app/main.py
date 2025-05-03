@@ -16,11 +16,22 @@ app = FastAPI(
     # redoc_url=None, # Можно отключить ReDoc
 )
 
+# --- НАСТРОЙКА CORS ---
+# Список источников (origins), которым разрешено делать запросы к API
+origins = [
+    "http://localhost:5173",  # Адрес вашего Frontend в режиме разработки
+    "http://localhost:5174",  # Добавим и этот, т.к. порт менялся
+    "http://127.0.0.1:5173", # На всякий случай
+    "http://127.0.0.1:5174", # На всякий случай
+    # При развертывании приложения добавьте сюда URL вашего рабочего фронтенда
+    # "https://your-production-frontend.com",
+]
+    
 # Настройка CORS
 if settings.BACKEND_CORS_ORIGINS:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin).rstrip("/") for origin in settings.all_cors_origins], # Используем all_cors_origins из config
+        allow_origins=[str(origin).rstrip("/") for origin in settings.all_cors_origins] + origins, # Используем all_cors_origins из config
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
