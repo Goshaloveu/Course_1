@@ -1,0 +1,28 @@
+# Core FastAPI
+fastapi
+uvicorn[standard] # ASGI server с доп. зависимостями
+
+# Database (SQLModel, SQLAlchemy, SQLite driver)
+sqlmodel
+sqlalchemy[asyncio]>=1.4 # Убедись, что версия поддерживает asyncio
+aiosqlite # Async SQLite driver
+
+# Config
+pydantic-settings
+python-dotenv # Для загрузки .env файла
+
+# Security (JWT, Password Hashing)
+python-jose[cryptography] # JWT handling
+passlib[bcrypt] # Password hashing
+
+# Utils
+tenacity # For pre_start.py retries
+python-multipart # For potential file uploads (API forms)
+httpx # For making HTTP requests (e.g., to Telegram API)
+
+# Database Migrations (Recommended, but not strictly needed for Day 1 MVP)
+# alembic
+
+# Linter/Formatter (Recommended)
+# ruff
+# mypy
