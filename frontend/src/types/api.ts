@@ -12,7 +12,7 @@ export interface User {
 }
 
 // Competition types
-export type CompetitionStatus = 'upcoming' | 'registration_open' | 'registration_closed' | 'in_progress' | 'completed' | 'results_published';
+export type CompetitionStatus = 'upcoming' | 'registration_open' | 'registration_closed' | 'ongoing' | 'finished' | 'results_published';
 export type CompetitionType = 'individual' | 'team' | 'other';
 
 export interface Competition {
@@ -54,6 +54,28 @@ export interface Participant {
   username: string;
   first_name: string;
   last_name: string;
+}
+
+// Team types
+export interface Team {
+  id: string;
+  name: string;
+  competition_id: string;
+  captain_id: string;
+  created_at: string;
+}
+
+export interface TeamMember {
+  user_id: string;
+  team_id: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface TeamRegistrationPayload {
+  name: string;
+  member_ids?: string[];
 }
 
 // API Response types

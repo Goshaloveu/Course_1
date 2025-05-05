@@ -49,7 +49,7 @@ async def get_registrations_by_competition(
         .limit(limit)
     )
     result = await db.execute(statement)
-    return result.all()
+    return result.scalars().all()
 
 async def get_registrations_by_user(
     db: AsyncSession, *, user_id: int, skip: int = 0, limit: int = 100

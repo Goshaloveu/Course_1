@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { Competition, CompetitionDetail, CompetitionResult, Participant, ResultsUploadPayload } from '@/types/api';
+import { Competition, CompetitionDetail, CompetitionResult, Participant, ResultsUploadPayload, Team, TeamMember, TeamRegistrationPayload } from '@/types/api';
 
 export const competitionService = {
   // Get all competitions
@@ -23,6 +23,44 @@ export const competitionService = {
   // Register for a competition
   registerForCompetition: async (id: string): Promise<{ message: string }> => {
     const response = await apiClient.post<{ message: string }>(`/competitions/${id}/register`, {});
+    return response.data;
+  },
+
+  // Check if user is registered for a competition
+  checkRegistrationStatus: async (id: string): Promise<{ is_registered: boolean, is_organizer: boolean }> => {
+    const response = await apiClient.get<{ is_registered: boolean, is_organizer: boolean }>(`/competitions/${id}/registration-status`);
+    return response.data;
+  },
+
+  // --- Team functionality ---
+  
+  // Create a team for a competition
+  createTeam: async (competitionId: string, teamData: TeamRegistrationPayload): Promise<Team> => {
+    const response = await apiClient.post<Team>(`/competitions/${competitionId}/teams`, teamData);
+    return response.data;
+  },
+  
+  // Get all teams for a competition
+  getCompetitionTeams: async (competitionId: string): Promise<Team[]> => {
+    const response = await apiClient.get<Team[]>(`/competitions/${competitionId}/teams`);
+    return response.data;
+  },
+  
+  // Get team members
+  getTeamMembers: async (teamId: string): Promise<TeamMember[]> => {
+    const response = await apiClient.get<TeamMember[]>(`/teams/${teamId}/members`);
+    return response.data;
+  },
+  
+  // Add member to team
+  addTeamMember: async (teamId: string, userId: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>(`/teams/${teamId}/members`, { user_id: userId });
+    return response.data;
+  },
+  
+  // Remove member from team
+  removeTeamMember: async (teamId: string, userId: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/teams/${teamId}/members/${userId}`);
     return response.data;
   },
 

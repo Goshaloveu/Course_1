@@ -52,6 +52,59 @@ export const CompetitionForm = ({
   }, [initialData]);
 
   const [error, setError] = useState<string>('');
+  const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
+
+  const validateDates = (name: string, value: string) => {
+    const newDateErrors: Record<string, string> = { ...dateErrors };
+    delete newDateErrors[name]; // Clear existing error for this field
+    
+    // Get timestamp values for comparison
+    const regStartDate = name === 'reg_start_at' ? new Date(value).getTime() : 
+                          formData.reg_start_at ? new Date(formData.reg_start_at).getTime() : null;
+    const regEndDate = name === 'reg_end_at' ? new Date(value).getTime() : 
+                        formData.reg_end_at ? new Date(formData.reg_end_at).getTime() : null;
+    const compStartDate = name === 'comp_start_at' ? new Date(value).getTime() : 
+                          formData.comp_start_at ? new Date(formData.comp_start_at).getTime() : null;
+    const compEndDate = name === 'comp_end_at' ? new Date(value).getTime() : 
+                        formData.comp_end_at ? new Date(formData.comp_end_at).getTime() : null;
+    
+    // Current time
+    const now = new Date().getTime();
+    
+    // Validate current field
+    if (name === 'reg_start_at') {
+      if (regStartDate && regStartDate < now) {
+        newDateErrors[name] = 'Дата начала регистрации не может быть в прошлом';
+      }
+      if (regStartDate && regEndDate && regStartDate >= regEndDate) {
+        newDateErrors[name] = 'Дата начала регистрации должна быть раньше окончания';
+      }
+    } 
+    else if (name === 'reg_end_at') {
+      if (regEndDate && regStartDate && regEndDate <= regStartDate) {
+        newDateErrors[name] = 'Дата окончания регистрации должна быть позже начала';
+      }
+      if (regEndDate && compStartDate && regEndDate > compStartDate) {
+        newDateErrors[name] = 'Регистрация должна закончиться до начала соревнования';
+      }
+    }
+    else if (name === 'comp_start_at') {
+      if (compStartDate && regEndDate && compStartDate < regEndDate) {
+        newDateErrors[name] = 'Соревнование не может начаться до окончания регистрации';
+      }
+      if (compStartDate && compEndDate && compStartDate >= compEndDate) {
+        newDateErrors[name] = 'Дата начала соревнования должна быть раньше окончания';
+      }
+    }
+    else if (name === 'comp_end_at') {
+      if (compEndDate && compStartDate && compEndDate <= compStartDate) {
+        newDateErrors[name] = 'Дата окончания соревнования должна быть позже начала';
+      }
+    }
+    
+    setDateErrors(newDateErrors);
+    return Object.keys(newDateErrors).length === 0;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -66,6 +119,10 @@ export const CompetitionForm = ({
             // Invalid date, don't update the form
             return;
           }
+          
+          // Validate date relationships
+          validateDates(name, value);
+          
           setFormData(prev => ({ ...prev, [name]: value }));
         } catch (error) {
           // If there's an error parsing the date, don't update the form
@@ -74,6 +131,11 @@ export const CompetitionForm = ({
       } else {
         // If empty, just clear the field
         setFormData(prev => ({ ...prev, [name]: '' }));
+        
+        // Clear any errors for this field
+        const newDateErrors = { ...dateErrors };
+        delete newDateErrors[name];
+        setDateErrors(newDateErrors);
       }
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -87,6 +149,26 @@ export const CompetitionForm = ({
     // Simple validation
     if (!formData.title) {
       setError('Название соревнования обязательно');
+      return;
+    }
+    
+    // Date validations
+    if (!formData.reg_start_at || !formData.reg_end_at || !formData.comp_start_at || !formData.comp_end_at) {
+      setError('Все даты должны быть заполнены');
+      return;
+    }
+    
+    // Validate all dates before submission
+    let isValid = true;
+    ['reg_start_at', 'reg_end_at', 'comp_start_at', 'comp_end_at'].forEach(field => {
+      const fieldValue = formData[field as keyof typeof formData] as string;
+      if (fieldValue && !validateDates(field, fieldValue)) {
+        isValid = false;
+      }
+    });
+    
+    if (!isValid || Object.keys(dateErrors).length > 0) {
+      setError('Пожалуйста, исправьте ошибки с датами перед сохранением');
       return;
     }
 
@@ -106,6 +188,27 @@ export const CompetitionForm = ({
       setError('Ошибка при сохранении соревнования. Пожалуйста, попробуйте снова.');
     }
   };
+
+  // Render date field with error handling
+  const renderDateField = (id: string, label: string, name: keyof typeof formData) => (
+    <div className="space-y-2">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <Input
+        id={id}
+        name={name}
+        type="datetime-local"
+        value={formData[name] || ''}
+        onChange={handleChange}
+        className={`date-input ${dateErrors[name] ? 'border-red-500' : ''}`}
+        required
+      />
+      {dateErrors[name] && (
+        <p className="text-xs text-red-500">{dateErrors[name]}</p>
+      )}
+    </div>
+  );
 
   return (
     <Card className="w-full">
@@ -165,66 +268,14 @@ export const CompetitionForm = ({
 
           {/* Registration Period */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="reg_start_at" className="text-sm font-medium">
-                Начало регистрации
-              </label>
-              <Input
-                id="reg_start_at"
-                name="reg_start_at"
-                type="datetime-local"
-                value={formData.reg_start_at || ''}
-                onChange={handleChange}
-                className="date-input"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="reg_end_at" className="text-sm font-medium">
-                Окончание регистрации
-              </label>
-              <Input
-                id="reg_end_at"
-                name="reg_end_at"
-                type="datetime-local"
-                value={formData.reg_end_at || ''}
-                onChange={handleChange}
-                className="date-input"
-                required
-              />
-            </div>
+            {renderDateField("reg_start_at", "Начало регистрации", "reg_start_at")}
+            {renderDateField("reg_end_at", "Окончание регистрации", "reg_end_at")}
           </div>
 
           {/* Competition Period */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="comp_start_at" className="text-sm font-medium">
-                Начало соревнования
-              </label>
-              <Input
-                id="comp_start_at"
-                name="comp_start_at"
-                type="datetime-local"
-                value={formData.comp_start_at || ''}
-                onChange={handleChange}
-                className="date-input"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="comp_end_at" className="text-sm font-medium">
-                Окончание соревнования
-              </label>
-              <Input
-                id="comp_end_at"
-                name="comp_end_at"
-                type="datetime-local"
-                value={formData.comp_end_at || ''}
-                onChange={handleChange}
-                className="date-input"
-                required
-              />
-            </div>
+            {renderDateField("comp_start_at", "Начало соревнования", "comp_start_at")}
+            {renderDateField("comp_end_at", "Окончание соревнования", "comp_end_at")}
           </div>
 
           {/* External Links */}

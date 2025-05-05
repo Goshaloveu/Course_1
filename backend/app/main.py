@@ -36,6 +36,15 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+else:
+    # Если настройки CORS не указаны в settings, используем список origins по умолчанию
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Подключаем роутер с префиксом /api/v1
 app.include_router(api_router, prefix=settings.API_V1_STR)

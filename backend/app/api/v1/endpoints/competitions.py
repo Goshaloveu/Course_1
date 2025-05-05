@@ -75,7 +75,7 @@ async def read_competition_results(
     if not competition:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Competition not found")
 
-    if competition.status != CompetitionStatusEnum.results_published:
+    if competition.status != CompetitionStatusEnum.RESULTS_PUBLISHED:
          # Согласно MVP, раздел появляется после публикации. Отдаем пустой список.
          # Или можно 403 Forbidden, если нужно явно указать причину.
          # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Results are not published yet")
@@ -115,13 +115,25 @@ async def register_for_competition(
 
     # 2. Проверить статус и даты регистрации
     now = datetime.utcnow()
-    if competition.status != CompetitionStatusEnum.registration_open:
-         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration is closed for this competition")
-    # Дополнительные проверки дат (если нужны поверх статуса)
-    # if competition.reg_start_at and now < competition.reg_start_at:
-    #     raise HTTPException(status_code=400, detail="Registration has not started yet")
-    # if competition.reg_end_at and now > competition.reg_end_at:
-    #     raise HTTPException(status_code=400, detail="Registration has ended")
+    
+    # Competition status should be updated by get_competition, but double-check registration period
+    if competition.status != CompetitionStatusEnum.REGISTRATION_OPEN:
+        if now < competition.reg_start_at:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Registration has not started yet"
+            )
+        elif now > competition.reg_end_at:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Registration period has ended"
+            )
+        else:
+            # If dates are ok but status is wrong, update it and proceed
+            competition.status = CompetitionStatusEnum.REGISTRATION_OPEN
+            session.add(competition)
+            await session.commit()
+            await session.refresh(competition)
 
     # 3. Попытка создать регистрацию
     registration_in = RegistrationCreate(user_id=current_user.id, competition_id=competition_id)
