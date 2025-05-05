@@ -28,9 +28,10 @@ export const CreateCompetitionPage = () => {
         <Link to="/organizer" className="text-blue-600 hover:text-blue-800 mr-4">
           &larr; Назад к панели организатора
         </Link>
+      </div>
+      <div className="flex items-center">
         <h1 className="text-3xl font-bold">Создать новое соревнование</h1>
       </div>
-      
       <p className="text-gray-600">
         Заполните форму ниже, чтобы создать новое соревнование. Все поля обязательны для заполнения.
       </p>

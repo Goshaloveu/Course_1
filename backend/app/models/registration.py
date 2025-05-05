@@ -3,9 +3,13 @@ from typing import Optional, TYPE_CHECKING
 from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint
 from datetime import datetime
 
+# Import models needed at runtime
+from .user import UserPublic
+from .competition import CompetitionPublic
+
 if TYPE_CHECKING:
-    from .user import User, UserPublic
-    from .competition import Competition, CompetitionPublic
+    from .user import User
+    from .competition import Competition
 
 class RegistrationBase(SQLModel):
     user_id: int = Field(foreign_key="user.id", primary_key=True, index=True) # Составной ПК
@@ -33,9 +37,9 @@ class RegistrationRead(RegistrationBase):
 # Модель для отображения участника в админке
 class RegistrationReadWithUser(SQLModel):
     registered_at: datetime
-    user: Optional['UserPublic'] = None
+    user: Optional[UserPublic] = None
 
 # Модель для отображения соревнования, на которое зарегистрирован юзер
 class RegistrationReadWithCompetition(SQLModel):
     registered_at: datetime
-    competition: Optional['CompetitionPublic'] = None
+    competition: Optional[CompetitionPublic] = None

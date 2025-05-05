@@ -54,3 +54,19 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def root():
     """ Простой эндпоинт для проверки работы """
     return {"message": f"Welcome to {settings.PROJECT_NAME} API"}
+
+def rebuild_models():
+    """
+    Rebuilds models with circular references to fix Pydantic validation issues
+    """
+    from app.models.user import UserPublic
+    from app.models.competition import CompetitionReadWithOwner
+    from app.models.result import ResultReadWithUser
+    
+    # Force model rebuilding to fix circular references
+    CompetitionReadWithOwner.model_rebuild()
+    ResultReadWithUser.model_rebuild()
+
+print("Rebuilding models for forward references...")
+rebuild_models()
+print("Models rebuilt.")

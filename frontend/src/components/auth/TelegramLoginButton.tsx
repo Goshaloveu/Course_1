@@ -64,7 +64,7 @@ export const TelegramLoginButton = ({
   }, []);
 
   // For development purposes, a simulated login button
-  if (import.meta.env.DEV) {
+  if (1) {
     return (
       <Button 
         className="bg-[#0088cc] hover:bg-[#0088cc]/90"

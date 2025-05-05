@@ -76,4 +76,20 @@ export const formatDateForInput = (dateString: string): string => {
     console.error('Error formatting date for input:', error);
     return '';
   }
+};
+
+/**
+ * Parse date from input field to ISO format
+ * @param inputDateString - Date string from datetime-local input
+ * @returns ISO formatted date string
+ */
+export const parseInputDate = (inputDateString: string): string => {
+  try {
+    // For direct input from datetime-local, ensure it's properly formatted
+    const date = new Date(inputDateString);
+    return date.toISOString();
+  } catch (error) {
+    console.error('Error parsing input date:', error);
+    return inputDateString;
+  }
 }; 

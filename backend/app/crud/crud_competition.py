@@ -14,7 +14,7 @@ async def get_competition(db: AsyncSession, competition_id: int) -> Optional[Com
     statement = select(Competition).where(Competition.id == competition_id).options(selectinload(Competition.organizer))
     # Используем execute и scalars().first() для AsyncSession
     result = await db.execute(statement)
-    return result.scalars().first()
+    return result.scalar_one_or_none()
 
 async def get_competitions(
     db: AsyncSession, *, skip: int = 0, limit: int = 100,
@@ -40,10 +40,12 @@ async def get_competitions_by_organizer(
     return result.scalars().all()
 
 async def create_competition(db: AsyncSession, *, competition_in: CompetitionCreate, organizer_id: int) -> Competition:
-    # Преобразуем Pydantic модель в словарь, убирая None значения, если нужно
-    # competition_data = competition_in.model_dump(exclude_unset=True) # Или используй jsonable_encoder
-    db_obj = Competition.model_validate(competition_in) # Используем model_validate для SQLModel >= 0.0.14
-    db_obj.organizer_id = organizer_id
+    # Преобразуем данные из CompetitionCreate в словарь
+    competition_data = competition_in.model_dump(exclude_unset=True)
+    # Добавляем organizer_id к данным
+    competition_data["organizer_id"] = organizer_id
+    # Создаем объект Competition с правильными данными
+    db_obj = Competition(**competition_data)
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)

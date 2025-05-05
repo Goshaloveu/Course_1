@@ -34,8 +34,8 @@ async def get_registration_by_user_and_competition(
         Registration.user_id == user_id,
         Registration.competition_id == competition_id
     )
-    result = await db.exec(statement)
-    return result.first()
+    result = await db.execute(statement)
+    return result.scalar_one_or_none()
 
 async def get_registrations_by_competition(
     db: AsyncSession, *, competition_id: int, skip: int = 0, limit: int = 100
@@ -48,7 +48,7 @@ async def get_registrations_by_competition(
         .offset(skip)
         .limit(limit)
     )
-    result = await db.exec(statement)
+    result = await db.execute(statement)
     return result.all()
 
 async def get_registrations_by_user(
@@ -62,7 +62,7 @@ async def get_registrations_by_user(
         .offset(skip)
         .limit(limit)
     )
-    result = await db.exec(statement)
+    result = await db.execute(statement)
     return result.all()
 
 async def delete_registration(db: AsyncSession, *, user_id: int, competition_id: int) -> bool:

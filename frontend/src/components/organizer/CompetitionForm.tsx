@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CompetitionDetail, CompetitionType } from '@/types/api';
-import { formatDateForInput } from '@/utils/dateUtils';
+import { formatDateForInput, parseInputDate } from '@/utils/dateUtils';
 
 interface CompetitionFormProps {
   initialData?: Partial<CompetitionDetail>;
@@ -28,11 +28,56 @@ export const CompetitionForm = ({
     ...initialData
   });
 
+  // Format initial date fields
+  useEffect(() => {
+    if (initialData) {
+      const formattedDates: Partial<CompetitionDetail> = { ...initialData };
+      
+      // Format dates for display if they exist
+      if (initialData.reg_start_at) {
+        formattedDates.reg_start_at = formatDateForInput(initialData.reg_start_at);
+      }
+      if (initialData.reg_end_at) {
+        formattedDates.reg_end_at = formatDateForInput(initialData.reg_end_at);
+      }
+      if (initialData.comp_start_at) {
+        formattedDates.comp_start_at = formatDateForInput(initialData.comp_start_at);
+      }
+      if (initialData.comp_end_at) {
+        formattedDates.comp_end_at = formatDateForInput(initialData.comp_end_at);
+      }
+      
+      setFormData(prev => ({ ...prev, ...formattedDates }));
+    }
+  }, [initialData]);
+
   const [error, setError] = useState<string>('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Special handling for date fields
+    if (['reg_start_at', 'reg_end_at', 'comp_start_at', 'comp_end_at'].includes(name)) {
+      if (value) {
+        try {
+          // Validate that the input is a valid date
+          const date = new Date(value);
+          if (isNaN(date.getTime())) {
+            // Invalid date, don't update the form
+            return;
+          }
+          setFormData(prev => ({ ...prev, [name]: value }));
+        } catch (error) {
+          // If there's an error parsing the date, don't update the form
+          console.error('Invalid date input:', error);
+        }
+      } else {
+        // If empty, just clear the field
+        setFormData(prev => ({ ...prev, [name]: '' }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,7 +91,16 @@ export const CompetitionForm = ({
     }
 
     try {
-      await onSubmit(formData);
+      // Format date fields for submission
+      const formattedData = {
+        ...formData,
+        reg_start_at: formData.reg_start_at ? parseInputDate(formData.reg_start_at) : '',
+        reg_end_at: formData.reg_end_at ? parseInputDate(formData.reg_end_at) : '',
+        comp_start_at: formData.comp_start_at ? parseInputDate(formData.comp_start_at) : '',
+        comp_end_at: formData.comp_end_at ? parseInputDate(formData.comp_end_at) : '',
+      };
+
+      await onSubmit(formattedData);
     } catch (error) {
       console.error('Error submitting form:', error);
       setError('Ошибка при сохранении соревнования. Пожалуйста, попробуйте снова.');
@@ -110,7 +164,7 @@ export const CompetitionForm = ({
           </div>
 
           {/* Registration Period */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label htmlFor="reg_start_at" className="text-sm font-medium">
                 Начало регистрации
@@ -119,8 +173,9 @@ export const CompetitionForm = ({
                 id="reg_start_at"
                 name="reg_start_at"
                 type="datetime-local"
-                value={formData.reg_start_at ? formatDateForInput(formData.reg_start_at) : ''}
+                value={formData.reg_start_at || ''}
                 onChange={handleChange}
+                className="date-input"
                 required
               />
             </div>
@@ -132,15 +187,16 @@ export const CompetitionForm = ({
                 id="reg_end_at"
                 name="reg_end_at"
                 type="datetime-local"
-                value={formData.reg_end_at ? formatDateForInput(formData.reg_end_at) : ''}
+                value={formData.reg_end_at || ''}
                 onChange={handleChange}
+                className="date-input"
                 required
               />
             </div>
           </div>
 
           {/* Competition Period */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label htmlFor="comp_start_at" className="text-sm font-medium">
                 Начало соревнования
@@ -149,8 +205,9 @@ export const CompetitionForm = ({
                 id="comp_start_at"
                 name="comp_start_at"
                 type="datetime-local"
-                value={formData.comp_start_at ? formatDateForInput(formData.comp_start_at) : ''}
+                value={formData.comp_start_at || ''}
                 onChange={handleChange}
+                className="date-input"
                 required
               />
             </div>
@@ -162,8 +219,9 @@ export const CompetitionForm = ({
                 id="comp_end_at"
                 name="comp_end_at"
                 type="datetime-local"
-                value={formData.comp_end_at ? formatDateForInput(formData.comp_end_at) : ''}
+                value={formData.comp_end_at || ''}
                 onChange={handleChange}
+                className="date-input"
                 required
               />
             </div>

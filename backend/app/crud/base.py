@@ -18,14 +18,14 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     async def get(self, db: AsyncSession, id: Any) -> Optional[ModelType]:
         statement = select(self.model).where(self.model.id == id)
-        result = await db.exec(statement)
-        return result.first()
+        result = await db.execute(statement)
+        return result.scalar_one_or_none()
 
     async def get_multi(
         self, db: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> List[ModelType]:
         statement = select(self.model).offset(skip).limit(limit)
-        result = await db.exec(statement)
+        result = await db.execute(statement)
         return result.all()
 
     async def create(self, db: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:

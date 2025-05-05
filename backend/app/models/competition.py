@@ -1,13 +1,16 @@
 # app/models/competition.py
-from typing import Optional, List, TYPE_CHECKING, Literal
+from typing import Optional, List, TYPE_CHECKING, Literal, ForwardRef, Union, Any
 from sqlmodel import Field, SQLModel, Relationship
 from datetime import datetime
 from enum import Enum
 import json # Для external_links_json
 
+# Import UserPublic outside TYPE_CHECKING to ensure it's available at runtime
+from .user import UserPublic
+
 # Предотвращаем циклические импорты для type hints
 if TYPE_CHECKING:
-    from .user import User, UserPublic
+    from .user import User
     from .registration import Registration
     from .result import Result, ResultReadWithUser
 
@@ -81,7 +84,7 @@ class CompetitionRead(CompetitionBase):
 
 # Модель для чтения соревнования с данными организатора
 class CompetitionReadWithOwner(CompetitionRead):
-     organizer: Optional['UserPublic'] = None # Включаем публичные данные организатора
+    organizer: Optional[UserPublic] = None # Включаем публичные данные организатора
 
 # Модель для публичного отображения соревнования (список, детали для юзера)
 class CompetitionPublic(CompetitionBase):

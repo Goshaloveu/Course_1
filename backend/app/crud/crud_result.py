@@ -15,7 +15,7 @@ async def create_result(db: AsyncSession, *, obj_in: ResultCreate) -> Optional[R
         Result.user_id == obj_in.user_id,
         Result.competition_id == obj_in.competition_id
     )
-    existing_result = (await db.exec(statement)).first()
+    existing_result = (await db.execute(statement)).scalar_one_or_none()
 
     if existing_result:
         # Обновляем существующий
@@ -63,5 +63,5 @@ async def get_results_by_competition(
         .offset(skip)
         .limit(limit)
     )
-    result = await db.exec(statement)
+    result = await db.execute(statement)
     return result.all()

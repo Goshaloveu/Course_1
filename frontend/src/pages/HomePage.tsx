@@ -28,13 +28,6 @@ export const HomePage = () => {
 
   return (
     <div className="space-y-8">
-      <section className="text-center py-12 bg-gray-50 rounded-lg">
-        <h1 className="text-4xl font-bold mb-4">Соревнования ЯЛ</h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Платформа для организации и участия в соревнованиях любого типа
-        </p>
-      </section>
-
       <section>
         <h2 className="text-2xl font-bold mb-6">Актуальные соревнования</h2>
         

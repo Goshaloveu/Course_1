@@ -7,13 +7,13 @@ from app.models.user import User, UserCreate # UserUpdate пока не опре
 
 async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
     statement = select(User).where(User.id == user_id)
-    result = await db.exec(statement)
-    return result.first()
+    result = await db.execute(statement)
+    return result.scalar_one_or_none()
 
 async def get_user_by_telegram_id(db: AsyncSession, telegram_id: int) -> Optional[User]:
     statement = select(User).where(User.telegram_id == telegram_id)
-    result = await db.exec(statement)
-    return result.first()
+    result = await db.execute(statement)
+    return result.scalar_one_or_none()
 
 # В нашем случае UserCreate может не использоваться, т.к. данные приходят от TG
 # Эта функция может быть для создания или обновления юзера после OAuth

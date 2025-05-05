@@ -1,8 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/*
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -59,5 +56,35 @@
     color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  
+  /* Улучшения для полей выбора даты */
+  input[type="datetime-local"].date-input {
+    appearance: none;
+    background-color: hsl(var(--background));
+    border: 1px solid hsl(var(--input));
+    border-radius: var(--radius);
+    padding: 0.5rem;
+    width: 100%;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  input[type="datetime-local"].date-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+    filter: invert(25%);
+  }
+  
+  input[type="datetime-local"].date-input:focus {
+    outline: none;
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 2px rgba(var(--ring), 0.2);
+  }
+
+  /* Fix date input display in Firefox */
+  @-moz-document url-prefix() {
+    input[type="datetime-local"].date-input {
+      padding: 0.4rem;
+    }
+  }
 } 
-*/ 

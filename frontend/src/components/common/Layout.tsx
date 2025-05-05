@@ -23,7 +23,7 @@ export const Layout = ({ children }: LayoutProps) => {
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link to="/" className="text-xl font-bold">
-            Соревнования ЯЛ
+            Соревнования YL
           </Link>
 
           <nav className="flex items-center space-x-6">
@@ -61,7 +61,7 @@ export const Layout = ({ children }: LayoutProps) => {
       {/* Footer */}
       <footer className="bg-gray-100 border-t py-6">
         <div className="container mx-auto px-4 text-center text-gray-600">
-          <p>&copy; {new Date().getFullYear()} Соревнования ЯЛ. Все права защищены.</p>
+          <p>&copy; {new Date().getFullYear()} Соревнования YL. Все права защищены.</p>
         </div>
       </footer>
       

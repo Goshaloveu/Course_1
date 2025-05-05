@@ -3,8 +3,11 @@ from typing import Optional, TYPE_CHECKING
 from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint
 from datetime import datetime
 
+# Import UserPublic directly for runtime usage
+from .user import UserPublic
+
 if TYPE_CHECKING:
-    from .user import User, UserPublic
+    from .user import User
     from .competition import Competition
 
 class ResultBase(SQLModel):
@@ -42,4 +45,4 @@ class ResultRead(ResultBase):
 
 # Модель для отображения результата с данными пользователя (в таблице результатов)
 class ResultReadWithUser(ResultRead):
-    user: Optional["UserPublic"] = None
+    user: Optional[UserPublic] = None
