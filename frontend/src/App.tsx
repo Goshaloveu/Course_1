@@ -1,18 +1,55 @@
 // import '@/index.css';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from '@/context/AuthContext';
-import { Layout } from '@/components/common/Layout';
-import { ProtectedRoute } from '@/components/common/ProtectedRoute';
+import { Toaster } from './components/ui/sonner';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+// Layouts
+import { Layout } from './components/common/Layout';
 
 // Pages
-import { HomePage } from '@/pages/HomePage';
-import { LoginPage } from '@/pages/LoginPage';
-import { ProfilePage } from '@/pages/ProfilePage';
-import { CompetitionDetailPage } from '@/pages/CompetitionDetailPage';
-import { OrganizerDashboard } from '@/pages/organizer/OrganizerDashboard';
-import { CreateCompetitionPage } from '@/pages/organizer/CreateCompetitionPage';
-import { EditCompetitionPage } from '@/pages/organizer/EditCompetitionPage';
-import { ManageCompetitionPage } from '@/pages/organizer/ManageCompetitionPage';
+import { HomePage } from './pages/HomePage';
+import { LoginPage } from './pages/LoginPage';
+// CompetitionsPage seems missing, using HomePage as placeholder? Add if it exists.
+// import CompetitionsPage from './pages/CompetitionsPage';
+import { CompetitionDetailPage } from './pages/CompetitionDetailPage';
+import { ProfilePage } from './pages/ProfilePage';
+
+// Organizer Pages
+import { OrganizerDashboard } from './pages/organizer/OrganizerDashboard';
+import { CreateCompetitionPage } from './pages/organizer/CreateCompetitionPage';
+import { EditCompetitionPage } from './pages/organizer/EditCompetitionPage';
+import { ManageCompetitionPage } from './pages/organizer/ManageCompetitionPage';
+
+// Team Pages
+import TeamsListPage from './pages/TeamsListPage';
+import MyTeamsPage from './pages/MyTeamsPage';
+import CreateTeamPage from './pages/CreateTeamPage';
+import TeamDetailPage from './pages/TeamDetailPage';
+
+// Protected Route Component (keep existing definition)
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  role?: 'organizer';
+}
+
+function ProtectedRoute({ children, role }: ProtectedRouteProps) {
+  const { isAuthenticated, user, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (role === 'organizer' && !user?.is_organizer) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
 
 function App() {
   return (
@@ -20,34 +57,60 @@ function App() {
       <Router>
         <Layout>
           <Routes>
-            {/* Public routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
+            {/* Assuming /competitions route shows HomePage or a missing CompetitionsPage */}
+            <Route path="/competitions" element={<HomePage />} />
             <Route path="/competitions/:id" element={<CompetitionDetailPage />} />
             
-            {/* Protected user routes */}
-            <Route 
-              path="/profile" 
+            {/* Team Routes */}
+            <Route path="/teams" element={<TeamsListPage />} />
+            <Route
+              path="/my-teams"
+              element={
+                <ProtectedRoute>
+                  <MyTeamsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teams/create"
+              element={
+                <ProtectedRoute>
+                  <CreateTeamPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teams/:teamId"
+              element={
+                <TeamDetailPage />
+              }
+            />
+
+            {/* Profile Route */}
+            <Route
+              path="/profile"
               element={
                 <ProtectedRoute>
                   <ProfilePage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            
-            {/* Protected organizer routes */}
-            <Route 
-              path="/organizer" 
+
+            {/* Organizer Routes */}
+            <Route
+              path="/organizer"
               element={
-                <ProtectedRoute requireOrganizer>
+                <ProtectedRoute role="organizer">
                   <OrganizerDashboard />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/organizer/competitions/new" 
+            <Route
+              path="/organizer/competitions/new"
               element={
-                <ProtectedRoute requireOrganizer>
+                <ProtectedRoute role="organizer">
                   <CreateCompetitionPage />
                 </ProtectedRoute>
               } 
@@ -55,7 +118,7 @@ function App() {
             <Route 
               path="/organizer/competitions/:id/edit" 
               element={
-                <ProtectedRoute requireOrganizer>
+                <ProtectedRoute role="organizer">
                   <EditCompetitionPage />
                 </ProtectedRoute>
               } 
@@ -63,9 +126,34 @@ function App() {
             <Route 
               path="/organizer/competitions/:id/manage" 
               element={
-                <ProtectedRoute requireOrganizer>
+                <ProtectedRoute role="organizer">
                   <ManageCompetitionPage />
                 </ProtectedRoute>
+              } 
+            />
+            
+            {/* Team routes */}
+            <Route path="/teams" element={<TeamsListPage />} />
+            <Route 
+              path="/my-teams" 
+              element={
+                <ProtectedRoute>
+                  <MyTeamsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/teams/create" 
+              element={
+                <ProtectedRoute>
+                  <CreateTeamPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/teams/:teamId" 
+              element={
+                <TeamDetailPage />
               } 
             />
             
@@ -73,6 +161,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
+        <Toaster />
       </Router>
     </AuthProvider>
   );

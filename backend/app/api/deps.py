@@ -11,7 +11,8 @@ from app.core import security
 from app.core.db import get_async_session # Импортируем из твоего db.py
 from app.models.user import User
 from app.models.token import TokenPayload
-from app.crud import crud_user # Импортируем CRUD пользователя
+from app.crud import crud_user, crud_team # Импортируем CRUD пользователя и команды
+from app.models.team import Team, TeamMember, TeamRole # Import Team models
 
 # Схема OAuth2 для получения токена из заголовка Authorization: Bearer <token>
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token") # URL для получения токена (если бы была форма)
@@ -98,3 +99,57 @@ async def validate_bot_api_key(api_key_header: str = Security(api_key_header_aut
 #     if competition.organizer_id != current_user.id:
 #         raise HTTPException(status_code=403, detail="Not the owner of this competition")
 #     return competition
+
+# --- Team Permission Dependencies ---
+
+async def get_team_from_path( 
+    team_id: int, 
+    session: AsyncSession = Depends(get_async_session)
+) -> Team:
+    """ Dependency to get a team by ID from the path parameter. """
+    team = await crud_team.get_with_details(session, id=team_id) # Load details
+    if not team:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+    return team
+
+async def get_current_team_member(
+    team: Team = Depends(get_team_from_path),
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+) -> TeamMember:
+    """ Dependency to get the current user's membership record for a specific team. """
+    member = await crud_team.get_member(session, team_id=team.id, user_id=current_user.id)
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not a member of this team."
+        )
+    return member
+
+async def get_current_team_leader(
+    team: Team = Depends(get_team_from_path),
+    current_user: User = Depends(get_current_active_user),
+    # member: TeamMember = Depends(get_current_team_member) # Could reuse, but direct check is clearer
+) -> User:
+    """ Dependency to ensure the current user is the leader of the team. """
+    if team.leader_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You must be the leader of this team to perform this action."
+        )
+    # We already know the user is active from get_current_active_user
+    # We already know the team exists from get_team_from_path
+    return current_user
+
+async def get_current_team_leader_or_officer(
+    member: TeamMember = Depends(get_current_team_member),
+    # team: Team = Depends(get_team_from_path), # Included via get_current_team_member -> get_team_from_path
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    """ Dependency to ensure the current user is the leader or an officer of the team. """
+    if member.role not in [TeamRole.LEADER, TeamRole.OFFICER]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You must be a leader or officer of this team to perform this action."
+        )
+    return current_user

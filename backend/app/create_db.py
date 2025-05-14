@@ -1,13 +1,47 @@
 # app/create_db.py
 import asyncio
 import logging
+import sys
+import os
 
-# Настраиваем логирование до импорта db, чтобы видеть SQL команды, если echo=True
+# Configure logging before importing anything else
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Импортируем асинхронный движок и функцию создания таблиц
-from app.core.db import async_engine, create_db_and_tables
+# Add the parent directory to sys.path so we can import the app modules
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from sqlmodel import SQLModel
+from sqlalchemy.ext.asyncio import create_async_engine
+
+# Import all models to ensure they're registered with SQLModel metadata
+from models.user import User, UserBase, UserCreate, UserRead, UserPublic, UserUpdate
+from models.token import Token, TokenPayload
+from models.message import Message
+from models.competition import (
+    Competition, CompetitionBase, CompetitionCreate, CompetitionUpdate,
+    CompetitionReadWithOwner, CompetitionPublic, 
+    CompetitionStatusEnum, CompetitionReadWithTeams
+)
+from models.registration import Registration, RegistrationCreate, RegistrationRead, RegistrationUpdate
+from models.result import Result, ResultCreate, ResultRead, ResultUpdate, ResultReadWithUser
+from models.team import Team, TeamBase, TeamMember, TeamRole, TeamStatus, TeamVisibility
+from models.team_registration import TeamRegistration, TeamRegistrationStatus
+
+# Get database URL from config
+from core.config import settings
+
+# Create async engine
+async_engine = create_async_engine(
+    settings.SQLALCHEMY_DATABASE_URI,
+    echo=False,
+    future=True,
+    connect_args={"check_same_thread": False}  # Only for SQLite
+)
+
+async def create_db_and_tables():
+    async with async_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
 
 async def init_db():
     logger.info("Creating database and tables...")
@@ -20,6 +54,6 @@ async def init_db():
 
 if __name__ == "__main__":
     logger.info("Initializing DB creation...")
-    # Используем asyncio.run() для запуска асинхронной функции
+    # Use asyncio.run() to run the async function
     asyncio.run(init_db())
     logger.info("DB creation process finished.")

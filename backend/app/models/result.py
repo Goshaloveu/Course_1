@@ -1,14 +1,15 @@
 # app/models/result.py
 from typing import Optional, TYPE_CHECKING
 from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint
+from sqlalchemy.orm import foreign, remote
 from datetime import datetime
 
 # Import UserPublic directly for runtime usage
 from .user import UserPublic
 
 if TYPE_CHECKING:
-    from .user import User
-    from .competition import Competition
+    from app.models.user import User
+    from app.models.competition import Competition
 
 class ResultBase(SQLModel):
     # user_id и competition_id будут частью составного ключа ниже
@@ -24,11 +25,14 @@ class Result(ResultBase, table=True):
     submitted_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
     # Уникальность пары пользователь-соревнование
-    __table_args__ = (UniqueConstraint("user_id", "competition_id", name="uq_user_competition_result"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "competition_id", name="uq_user_competition_result"),
+        {'extend_existing': True}
+    )
 
-    # Связи
-    user: 'User' = Relationship(back_populates="results")
-    competition: 'Competition' = Relationship(back_populates="results")
+    # Viewonly relationships to prevent circular references
+    user: "app.models.user.User" = Relationship(sa_relationship_kwargs={"viewonly": True})
+    competition: "app.models.competition.Competition" = Relationship(sa_relationship_kwargs={"viewonly": True})
 
 # Модель для создания/загрузки результата
 class ResultCreate(ResultBase):
@@ -42,6 +46,11 @@ class ResultRead(ResultBase):
     user_id: int
     competition_id: int
     submitted_at: datetime
+
+# Модель для обновления результата
+class ResultUpdate(SQLModel):
+    result_value: Optional[str] = None
+    rank: Optional[int] = None
 
 # Модель для отображения результата с данными пользователя (в таблице результатов)
 class ResultReadWithUser(ResultRead):

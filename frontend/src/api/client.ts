@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Import environment variables from .env file
+// API URL для локального сервера
 const API_URL = 'http://localhost:8000';
 
 const apiClient = axios.create({
@@ -8,7 +8,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true
+  withCredentials: true // Включаем withCredentials для корректной работы аутентификации
 });
 
 // Add a request interceptor to include the auth token

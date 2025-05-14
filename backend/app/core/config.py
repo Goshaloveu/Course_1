@@ -16,9 +16,8 @@ def parse_cors(v: Any) -> list[str] | str:
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        # Определяем путь к .env относительно этого файла config.py
-        # Если config.py в backend/app/core/, то ../../.env указывает на файл в корне проекта
-        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'),
+        # Путь к .env файлу в корне проекта
+        env_file="C:/Users/gosha/Course_1/.env",
         env_ignore_empty=True,
         extra="ignore",
     )
@@ -44,6 +43,13 @@ class Settings(BaseSettings):
         computed_origins = [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGINS]
         if self.FRONTEND_HOST not in computed_origins:
              computed_origins.append(self.FRONTEND_HOST)
+        
+        # Добавляем поддержку ngrok для тестирования
+        ngrok_domains = ["https://4533-37-120-217-114.ngrok-free.app"]
+        for domain in ngrok_domains:
+            if domain not in computed_origins:
+                computed_origins.append(domain)
+                
         return computed_origins
 
     PROJECT_NAME: str = "YL Competitions MVP"
@@ -61,36 +67,20 @@ class Settings(BaseSettings):
         return f"sqlite+aiosqlite:///{self.SQLITE_DB_FILE}"
 
     # --- Настройки Telegram ---
-    TELEGRAM_BOT_TOKEN: str = "YOUR_TELEGRAM_BOT_TOKEN" # !!! ЗАМЕНИ НА СВОЙ ТОКЕН !!!
-    TELEGRAM_BOT_API_KEY: str = secrets.token_urlsafe(32) # Ключ для защиты эндпоинта бота
+    # Токен бота, полученный от BotFather (необходим для верификации данных от Telegram Login)
+    TELEGRAM_BOT_TOKEN: str = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    
+    # Имя бота для отображения в виджете
+    TELEGRAM_BOT_NAME: str = os.environ.get("TELEGRAM_BOT_NAME", "")
+    
+    # API ключ для обеспечения безопасности между сервисами
+    TELEGRAM_BOT_API_KEY: str = os.environ.get("TELEGRAM_BOT_API_KEY", "")
+    
+    # --- Настройки API Telegram бота (для обратной совместимости) ---
+    TELEGRAM_BOT_API_URL: str = os.environ.get("TELEGRAM_BOT_API_URL", "http://localhost:3001")
 
-    # --- Настройки Telegram OAuth (примерные, уточни по документации Telegram) ---
-    # Эти значения ты получишь при регистрации приложения в Telegram
-    TELEGRAM_CLIENT_ID: str = "YOUR_TELEGRAM_CLIENT_ID" # !!! ЗАМЕНИ !!!
-    TELEGRAM_CLIENT_SECRET: str = "YOUR_TELEGRAM_CLIENT_SECRET" # !!! ЗАМЕНИ !!!
-    TELEGRAM_REDIRECT_URI: str = f"{API_V1_STR}/auth/telegram/callback" # Относительный путь
-
-    # --- Sentry (опционально, для MVP можно закомментировать) ---
+    # --- Sentry (опционально, для мониторинга ошибок) ---
     SENTRY_DSN: HttpUrl | None = None
-
-    # --- Удаленные настройки (не нужны для SQLite/Telegram MVP) ---
-    # POSTGRES_SERVER: str
-    # POSTGRES_PORT: int = 5432
-    # POSTGRES_USER: str
-    # POSTGRES_PASSWORD: str = ""
-    # POSTGRES_DB: str = ""
-    # SMTP_TLS: bool = True
-    # SMTP_SSL: bool = False
-    # SMTP_PORT: int = 587
-    # SMTP_HOST: str | None = None
-    # SMTP_USER: str | None = None
-    # SMTP_PASSWORD: str | None = None
-    # EMAILS_FROM_EMAIL: EmailStr | None = None
-    # EMAILS_FROM_NAME: str | None = None
-    # EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
-    # EMAIL_TEST_USER: EmailStr = "test@example.com"
-    # FIRST_SUPERUSER: EmailStr
-    # FIRST_SUPERUSER_PASSWORD: str
 
 
 settings = Settings()

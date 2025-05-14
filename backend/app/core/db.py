@@ -8,10 +8,17 @@ from sqlmodel import SQLModel # Убедись, что все модели им�
 from .config import settings
 # Важно: импортируй здесь все твои модели, чтобы SQLModel знал о них при создании таблиц
 # Либо убедись, что они импортируются в другом месте до вызова create_db
-from app.models.user import User, UserPublic
-from app.models.competition import Competition, CompetitionPublic
-from app.models.registration import Registration
-from app.models.result import Result, ResultReadWithUser
+import sys
+import os
+# Add the parent directory to sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from models.user import User, UserPublic
+from models.competition import Competition, CompetitionBase, CompetitionStatusEnum, CompetitionReadWithOwner, CompetitionPublic
+from models.registration import Registration
+from models.result import Result, ResultReadWithUser
+from models.team import Team, TeamMember, TeamBase, TeamRole, TeamStatus, TeamVisibility
+from models.team_registration import TeamRegistration, TeamRegistrationStatus
 
 # --- ВАЖНО: Вызов model_rebuild ПОСЛЕ импорта всех моделей ---
 print("Rebuilding models for forward references...")
@@ -19,6 +26,9 @@ User.model_rebuild()
 Competition.model_rebuild()
 Registration.model_rebuild()
 Result.model_rebuild()
+Team.model_rebuild()
+TeamMember.model_rebuild()
+TeamRegistration.model_rebuild()
 print("Models rebuilt.")
 
 # Создаем асинхронный движок

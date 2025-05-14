@@ -93,13 +93,13 @@ export const OrganizerDashboard = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {competitions.map((competition) => (
-              <Card key={competition.id} className="overflow-hidden">
+              <Card key={competition.id} className="flex justify-between items-start space-y-1">
+                <span className={`px-3 py-1 rounded-full text-xs font-medium mb-2 ${getStatusBadgeClass(competition.status)}`}>
+                  {getStatusLabel(competition.status)}
+                </span>
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
                     <CardTitle className="text-xl">{competition.title}</CardTitle>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(competition.status)}`}>
-                      {getStatusLabel(competition.status)}
-                    </span>
                   </div>
                   <CardDescription>
                     {formatDate(competition.comp_start_at)} - {formatDate(competition.comp_end_at)}

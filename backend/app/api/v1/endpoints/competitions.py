@@ -1,6 +1,6 @@
 # app/api/v1/endpoints/competitions.py
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import List, Optional, Any
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Path, Body
 from sqlmodel.ext.asyncio.session import AsyncSession
 from datetime import datetime
 
@@ -8,9 +8,15 @@ from app.api import deps
 from app.crud import crud_competition, crud_result, crud_registration, crud_user
 from app.models.registration import RegistrationCreate
 from app.models.message import Message
-from app.models.competition import Competition, CompetitionPublic, CompetitionStatusEnum, CompetitionReadWithOwner
+from app.models.competition import Competition, CompetitionPublic, CompetitionStatusEnum, CompetitionReadWithOwner, CompetitionFormat
 from app.models.result import ResultReadWithUser, Result # Импорт моделей
 from app.models.user import User, UserPublic # Импорт моделей
+from app.schemas.competition import CompetitionRead, CompetitionCreate, CompetitionUpdate, CompetitionReadDetailed
+from app.schemas.result import ResultReadWithUser
+from app.schemas.message import Message
+from app.schemas.team_registration import TeamRegistrationRead, TeamRegistrationReadDetailed
+from app.schemas.team import TeamRead
+from app.models.team import TeamRole
 
 router = APIRouter()
 
@@ -147,3 +153,123 @@ async def register_for_competition(
         )
 
     return Message(message="Successfully registered for the competition")
+
+# --- Team Registration Endpoints ---
+
+@router.post("/{competition_id}/register-team", response_model=TeamRegistrationRead)
+async def register_team_for_competition(
+    competition_id: int = Path(...),
+    team_id_in: TeamRead = Body(..., embed=True, alias="team"), # Expecting {"team": {"id": team_id}}
+    session: AsyncSession = Depends(deps.get_async_session),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """ Register a team led by the current user for a competition. """
+    competition = await crud_competition.get_competition(session, id=competition_id)
+    if not competition:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Competition not found")
+
+    # Check if competition is team-based
+    if competition.format != CompetitionFormat.TEAM:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This competition is not for teams."
+        )
+
+    # Check registration dates/status (Add more robust checks)
+    now = datetime.utcnow()
+    if competition.reg_start_at and now < competition.reg_start_at:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration has not opened yet.")
+    if competition.reg_end_at and now > competition.reg_end_at:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration is closed.")
+    # Add check for competition status (e.g., must be REGISTRATION_OPEN)
+
+    team = await crud_user.get_with_details(session, id=team_id_in.id) # Load members
+    if not team:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Team with id {team_id_in.id} not found")
+
+    # Check if current user is the leader of the team
+    if team.leader_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the team leader can register the team for a competition."
+        )
+
+    # CRUD operation handles member count validation now
+    try:
+        registration = await crud_team_registration.create_registration(
+            session, team=team, competition=competition
+        )
+        return registration
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.delete("/{competition_id}/withdraw-team/{team_id}", response_model=TeamRegistrationRead)
+async def withdraw_team_from_competition(
+    competition_id: int = Path(...),
+    team_id: int = Path(...),
+    session: AsyncSession = Depends(deps.get_async_session),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """ Withdraw a team's registration (only team leader). """
+    team = await crud_team.get(session, id=team_id)
+    if not team:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+
+    # Check if current user is the leader
+    if team.leader_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the team leader can withdraw the registration."
+        )
+
+    registration = await crud_team_registration.get_registration(
+        session, team_id=team_id, competition_id=competition_id
+    )
+    if not registration:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team registration not found for this competition.")
+
+    # Add checks: Cannot withdraw after roster lock date or competition start?
+    competition = await crud_competition.get(session, id=competition_id) # Needed for dates
+    now = datetime.utcnow()
+    if competition.roster_lock_date and now > competition.roster_lock_date:
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot withdraw registration after roster lock date.")
+    # if competition.start_date and now > competition.start_date:
+    #     raise HTTPException(status_code=400, detail="Cannot withdraw registration after competition has started.")
+
+    updated_registration = await crud_team_registration.withdraw_registration(session, registration=registration)
+    return updated_registration
+
+@router.get("/{competition_id}/teams", response_model=List[TeamRegistrationReadDetailed])
+async def list_registered_teams(
+    competition_id: int = Path(...),
+    session: AsyncSession = Depends(deps.get_async_session),
+    # current_user: User = Depends(deps.get_current_active_user), # Public endpoint? Or logged-in only?
+) -> Any:
+    """ List teams registered for a specific competition. """
+    competition = await crud_competition.get(session, id=competition_id)
+    if not competition:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Competition not found")
+
+    if competition.format != CompetitionFormat.TEAM:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This competition is not for teams."
+        )
+
+    registrations = await crud_team_registration.get_registrations_for_competition(
+        session, competition_id=competition_id
+    )
+    
+    # Convert to Detailed schema including team info
+    detailed_registrations = []
+    for reg in registrations:
+        # Use model_validate for Pydantic v2
+        reg_data = TeamRegistrationRead.model_validate(reg).model_dump()
+        # Team data should be eager loaded by the CRUD function
+        team_data = TeamRead.model_validate(reg.team).model_dump()
+        
+        detailed_registrations.append(
+            TeamRegistrationReadDetailed(**reg_data, team=TeamRead(**team_data))
+        )
+        
+    return detailed_registrations

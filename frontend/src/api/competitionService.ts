@@ -1,5 +1,8 @@
 import apiClient from './client';
 import { Competition, CompetitionDetail, CompetitionResult, Participant, ResultsUploadPayload, Team, TeamMember, TeamRegistrationPayload } from '@/types/api';
+import { TeamRegistrationRead, TeamRegistrationCreatePayload, TeamRegistrationReadDetailed } from '../types/teamRegistration';
+
+const API_BASE = '/competitions';
 
 export const competitionService = {
   // Get all competitions
@@ -10,57 +13,58 @@ export const competitionService = {
 
   // Get competition by ID
   getCompetitionById: async (id: string): Promise<CompetitionDetail> => {
-    const response = await apiClient.get<CompetitionDetail>(`/competitions/${id}`);
+    const response = await apiClient.get<CompetitionDetail>(`${API_BASE}/${id}`);
     return response.data;
   },
 
   // Get competition results
   getCompetitionResults: async (id: string): Promise<CompetitionResult[]> => {
-    const response = await apiClient.get<CompetitionResult[]>(`/competitions/${id}/results`);
+    const response = await apiClient.get<CompetitionResult[]>(`${API_BASE}/${id}/results`);
     return response.data;
   },
 
   // Register for a competition
   registerForCompetition: async (id: string): Promise<{ message: string }> => {
-    const response = await apiClient.post<{ message: string }>(`/competitions/${id}/register`, {});
+    const response = await apiClient.post<{ message: string }>(`${API_BASE}/${id}/register`, {});
     return response.data;
   },
 
   // Check if user is registered for a competition
   checkRegistrationStatus: async (id: string): Promise<{ is_registered: boolean, is_organizer: boolean }> => {
-    const response = await apiClient.get<{ is_registered: boolean, is_organizer: boolean }>(`/competitions/${id}/registration-status`);
+    const response = await apiClient.get<{ is_registered: boolean, is_organizer: boolean }>(`${API_BASE}/${id}/registration-status`);
     return response.data;
   },
 
-  // --- Team functionality ---
+  // --- Legacy Team functionality (DEPRECATED) ---
+  // These methods are kept for backward compatibility but should be replaced with new team API
   
-  // Create a team for a competition
-  createTeam: async (competitionId: string, teamData: TeamRegistrationPayload): Promise<Team> => {
-    const response = await apiClient.post<Team>(`/competitions/${competitionId}/teams`, teamData);
+  // Create a team for a competition (DEPRECATED)
+  createTeamLegacy: async (competitionId: string, teamData: TeamRegistrationPayload): Promise<Team> => {
+    const response = await apiClient.post<Team>(`${API_BASE}/${competitionId}/teams/legacy`, teamData);
     return response.data;
   },
   
-  // Get all teams for a competition
-  getCompetitionTeams: async (competitionId: string): Promise<Team[]> => {
-    const response = await apiClient.get<Team[]>(`/competitions/${competitionId}/teams`);
+  // Get all teams for a competition (DEPRECATED)
+  getCompetitionTeamsLegacy: async (competitionId: string): Promise<Team[]> => {
+    const response = await apiClient.get<Team[]>(`${API_BASE}/${competitionId}/teams/legacy`);
     return response.data;
   },
   
-  // Get team members
-  getTeamMembers: async (teamId: string): Promise<TeamMember[]> => {
-    const response = await apiClient.get<TeamMember[]>(`/teams/${teamId}/members`);
+  // Get team members (DEPRECATED)
+  getTeamMembersLegacy: async (teamId: string): Promise<TeamMember[]> => {
+    const response = await apiClient.get<TeamMember[]>(`/teams/${teamId}/members/legacy`);
     return response.data;
   },
   
-  // Add member to team
-  addTeamMember: async (teamId: string, userId: string): Promise<{ message: string }> => {
-    const response = await apiClient.post<{ message: string }>(`/teams/${teamId}/members`, { user_id: userId });
+  // Add member to team (DEPRECATED)
+  addTeamMemberLegacy: async (teamId: string, userId: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>(`/teams/${teamId}/members/legacy`, { user_id: userId });
     return response.data;
   },
   
-  // Remove member from team
-  removeTeamMember: async (teamId: string, userId: string): Promise<{ message: string }> => {
-    const response = await apiClient.delete<{ message: string }>(`/teams/${teamId}/members/${userId}`);
+  // Remove member from team (DEPRECATED)
+  removeTeamMemberLegacy: async (teamId: string, userId: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/teams/${teamId}/members/legacy/${userId}`);
     return response.data;
   },
 
@@ -100,5 +104,49 @@ export const competitionService = {
   publishCompetitionResults: async (id: string): Promise<{ message: string }> => {
     const response = await apiClient.post<{ message: string }>(`/organizer/competitions/${id}/results/publish`, {});
     return response.data;
-  }
+  },
+
+  // Function to register the current user (assuming it exists)
+  registerCurrentUser: async (competitionId: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>(`${API_BASE}/${competitionId}/register`);
+    return response.data;
+  },
+
+  // Function to get results (assuming it exists)
+  getResults: async (competitionId: string): Promise<CompetitionResult[]> => {
+    const response = await apiClient.get<CompetitionResult[]>(`${API_BASE}/${competitionId}/results`);
+    return response.data;
+  },
+
+  // Function to upload results (assuming it exists)
+  uploadResults: async (competitionId: string, payload: ResultsUploadPayload): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>(`/organizer/competitions/${competitionId}/results`, payload);
+    return response.data;
+  },
+
+  // --- Team Registration API Calls ---
+
+  // Register a team for a competition
+  registerTeamForCompetition: async (competitionId: number | string, payload: TeamRegistrationCreatePayload): Promise<TeamRegistrationRead> => {
+    const response = await apiClient.post<TeamRegistrationRead>(`${API_BASE}/${competitionId}/register-team`, payload);
+    return response.data;
+  },
+
+  // Withdraw a team from a competition
+  withdrawTeamFromCompetition: async (competitionId: number | string, teamId: number | string): Promise<TeamRegistrationRead> => {
+    const response = await apiClient.delete<TeamRegistrationRead>(`${API_BASE}/${competitionId}/withdraw-team/${teamId}`);
+    return response.data;
+  },
+
+  // List teams registered for a competition
+  getRegisteredTeams: async (competitionId: number | string): Promise<TeamRegistrationReadDetailed[]> => {
+    try {
+      const response = await apiClient.get<TeamRegistrationReadDetailed[]>(`${API_BASE}/${competitionId}/teams`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching registered teams:', error);
+      // Return empty array instead of throwing to prevent UI errors
+      return [];
+    }
+  },
 }; 

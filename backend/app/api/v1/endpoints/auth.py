@@ -1,9 +1,13 @@
 # app/api/v1/endpoints/auth.py
-from typing import Optional
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import SQLModel
 import httpx # Для запросов к Telegram API
+import hmac
+import hashlib
+import time
+from datetime import datetime
 
 from app.api import deps
 from app.core.config import settings
@@ -14,8 +18,7 @@ from app.crud import crud_user
 
 router = APIRouter()
 
-# ПРИМЕР: Структура данных, ожидаемая от Telegram OAuth Widget
-# Уточни реальную структуру по документации Telegram!
+# Структура данных от Telegram Login Widget
 class TelegramLoginData(SQLModel):
     id: int
     first_name: Optional[str] = None
@@ -25,45 +28,81 @@ class TelegramLoginData(SQLModel):
     auth_date: int
     hash: str
 
-async def verify_telegram_hash(data: dict) -> bool:
+# Модель для авторизации через Telegram бота
+class TelegramBotAuthRequest(SQLModel):
+    auth_token: str
+
+async def verify_telegram_hash(data: Dict[str, Any]) -> bool:
     """
     Проверяет хеш данных от Telegram Widget.
-    ВНИМАНИЕ: Это критически важная функция для безопасности!
-    Реализация зависит от способа получения данных (Widget, OAuth Flow).
-    Нужно реализовать проверку подписи с использованием твоего BOT_TOKEN.
-    См. документацию Telegram: https://core.telegram.org/widgets/login#checking-authorization
+    Реализация согласно документации Telegram:
+    https://core.telegram.org/widgets/login#checking-authorization
     """
-    # --- ПРИМЕРНАЯ ЛОГИКА ПРОВЕРКИ (НЕ РАБОЧАЯ БЕЗ РЕАЛИЗАЦИИ) ---
-    # data_check_string = ... # Собрать строку по правилам Telegram
-    # secret_key = hashlib.sha256(settings.TELEGRAM_BOT_TOKEN.encode()).digest()
-    # hmac_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-    # return hmac.compare_digest(data['hash'], hmac_hash)
-    # --- ЗАГЛУШКА ДЛЯ MVP (НЕ БЕЗОПАСНО!) ---
-    print(f"WARNING: Telegram hash verification is skipped in MVP! Data: {data}")
-    return True # ВРЕМЕННО! Замени на реальную проверку!
+    if 'hash' not in data:
+        return False
+    
+    # Получаем хеш из данных и удаляем его для формирования строки проверки
+    received_hash = data.pop('hash')
+    
+    # Сортируем данные по ключу
+    data_check_array = []
+    for key in sorted(data.keys()):
+        # Пропускаем поля, которые не участвуют в формировании хеша
+        if key != 'hash':
+            value = data[key]
+            data_check_array.append(f"{key}={value}")
+    
+    # Формируем строку для проверки
+    data_check_string = '\n'.join(data_check_array)
+    
+    # Создаем секретный ключ из токена бота
+    secret_key = hashlib.sha256(settings.TELEGRAM_BOT_TOKEN.encode()).digest()
+    
+    # Вычисляем ожидаемый хеш
+    hmac_hash = hmac.new(
+        secret_key,
+        data_check_string.encode(), 
+        hashlib.sha256
+    ).hexdigest()
+    
+    # Возвращаем хеш в данные для последующего использования
+    data['hash'] = received_hash
+    
+    # Проверяем, совпадают ли хеши (безопасное сравнение)
+    return hmac.compare_digest(received_hash, hmac_hash)
 
 @router.post("/auth/telegram/callback", response_model=Token)
 async def login_telegram_callback(
     *,
     session: AsyncSession = Depends(deps.get_async_session),
-    # Мы ожидаем данные от Telegram OAuth Widget в теле POST запроса
-    # (Если используется другой флоу, нужно изменить получение данных, например, code из query)
-    tg_data_dict: dict = Body(...) # Принимаем как словарь для проверки хеша
-    # tg_data: TelegramLoginData = Body(...) # Можно использовать модель после проверки хеша
+    tg_data_dict: dict = Body(...)
 ):
     """
-    Обработка callback от Telegram OAuth (предполагаем Widget Login).
+    Обработка данных от Telegram Login Widget.
     Проверяет хеш, находит или создает пользователя, возвращает JWT токен.
     """
-    # 1. Проверка хеша (КРИТИЧЕСКИ ВАЖНО!)
-    is_valid_hash = await verify_telegram_hash(tg_data_dict)
+    # Режим отладки: если мы в dev-окружении и в данных есть признак мок-данных
+    is_dev_mode = settings.ENVIRONMENT == "local" and tg_data_dict.get("hash") == "mockhash123"
+    
+    # 1. Проверка хеша (критически важно для безопасности)
+    is_valid_hash = is_dev_mode or await verify_telegram_hash(tg_data_dict)
     if not is_valid_hash:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid Telegram data hash",
         )
 
-    # 2. Валидация данных (после проверки хеша)
+    # 2. Проверяем срок действия auth_date (не более 24 часов)
+    if not is_dev_mode:  # Пропускаем проверку для дев-режима
+        auth_date = tg_data_dict.get('auth_date', 0)
+        current_time = int(time.time())
+        if current_time - auth_date > 86400:  # 24 часа
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Authentication data expired",
+            )
+
+    # 3. Валидация данных
     try:
         tg_data = TelegramLoginData(**tg_data_dict)
     except ValueError as e:
@@ -72,30 +111,94 @@ async def login_telegram_callback(
             detail=f"Invalid Telegram data structure: {e}",
         )
 
-    # 3. Поиск или создание пользователя в БД
+    # 4. Поиск или создание пользователя в БД
     user_data_for_db = {
         "telegram_id": tg_data.id,
         "username": tg_data.username,
         "first_name": tg_data.first_name,
         "last_name": tg_data.last_name,
-        "avatar_url": tg_data.photo_url
+        "avatar_url": tg_data.photo_url,
+        "last_login": datetime.utcnow()
     }
-    # Удаляем None значения, если они есть, чтобы не перезаписать существующие
+    # Удаляем None значения
     user_data_for_db = {k: v for k, v in user_data_for_db.items() if v is not None}
 
     user = await crud_user.create_or_update_user_from_oauth(session, user_data=user_data_for_db)
     if not user:
-        # Это не должно произойти с create_or_update, но на всякий случай
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not create or update user",
         )
 
-    # 4. Создание JWT токена
-    # В 'sub' (subject) токена записываем telegram_id, т.к. он уникален и используется для поиска юзера
-    access_token = security.create_access_token(subject=user.telegram_id)
+    # 5. Создание JWT токена
+    access_token = security.create_access_token(subject=str(user.telegram_id))
 
     return Token(access_token=access_token, token_type="bearer")
+
+# Для обеспечения обратной совместимости оставляем эндпоинт для бота
+@router.post("/auth/telegram-bot", response_model=Token)
+async def login_via_telegram_bot(
+    *,
+    session: AsyncSession = Depends(deps.get_async_session),
+    auth_req: TelegramBotAuthRequest = Body(...)
+):
+    """
+    Авторизация через Telegram бота (используется только для обратной совместимости).
+    В основном используется виджет Telegram Login.
+    """
+    # 1. Верифицируем токен с помощью API Telegram бота
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{settings.TELEGRAM_BOT_API_URL}/verify-auth",
+                headers={"X-BOT-API-KEY": settings.TELEGRAM_BOT_API_KEY},
+                json={"auth_token": auth_req.auth_token}
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication token",
+                )
+            
+            # Получаем данные пользователя от бота
+            tg_auth_data = response.json()
+            
+            if not tg_auth_data.get("is_valid"):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication data",
+                )
+            
+            # 2. Извлекаем данные пользователя
+            user_data_for_db = {
+                "telegram_id": tg_auth_data.get("telegram_id"),
+                "username": tg_auth_data.get("username"),
+                "first_name": tg_auth_data.get("first_name"),
+                "last_login": datetime.utcnow()
+            }
+            
+            # Удаляем None значения
+            user_data_for_db = {k: v for k, v in user_data_for_db.items() if v is not None}
+            
+            # 3. Находим или создаем пользователя
+            user = await crud_user.create_or_update_user_from_oauth(session, user_data=user_data_for_db)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Could not create or update user",
+                )
+            
+            # 4. Создаем JWT токен
+            access_token = security.create_access_token(subject=str(user.telegram_id))
+            
+            return Token(access_token=access_token, token_type="bearer")
+        
+        except httpx.RequestError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Telegram bot service unavailable",
+            )
 
 # --- Альтернативный вариант OAuth через редирект (Более сложный) ---
 # @router.get("/auth/telegram")

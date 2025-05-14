@@ -9,67 +9,74 @@ from app.models.user import User
 from app.models.competition import Competition
 from app.models.registration import Registration, RegistrationCreate
 from app.models.result import Result
+from app.crud.base import CRUDBase
 
-async def create_registration(db: AsyncSession, *, obj_in: RegistrationCreate) -> Optional[Registration]:
-    """ Создает регистрацию. Возвращает None если уже существует. """
-    # Проверка на дубликат перед вставкой (хотя UNIQUE constraint тоже сработает)
-    existing = await get_registration_by_user_and_competition(db, user_id=obj_in.user_id, competition_id=obj_in.competition_id)
-    if existing:
-        return None # Или можно бросать исключение
+class CRUDRegistration(CRUDBase[Registration, RegistrationCreate, RegistrationCreate]):
+    """ CRUD operations for Registrations """
+    
+    async def create_registration(self, db: AsyncSession, *, obj_in: RegistrationCreate) -> Optional[Registration]:
+        """ Создает регистрацию. Возвращает None если уже существует. """
+        # Проверка на дубликат перед вставкой (хотя UNIQUE constraint тоже сработает)
+        existing = await self.get_registration_by_user_and_competition(db, user_id=obj_in.user_id, competition_id=obj_in.competition_id)
+        if existing:
+            return None # Или можно бросать исключение
 
-    db_obj = Registration.model_validate(obj_in)
-    db.add(db_obj)
-    try:
-        await db.commit()
-        await db.refresh(db_obj)
-        return db_obj
-    except IntegrityError: # Ловим ошибку UNIQUE constraint
-        await db.rollback()
-        return None # Или бросаем специфическую ошибку
+        db_obj = Registration.model_validate(obj_in)
+        db.add(db_obj)
+        try:
+            await db.commit()
+            await db.refresh(db_obj)
+            return db_obj
+        except IntegrityError: # Ловим ошибку UNIQUE constraint
+            await db.rollback()
+            return None # Или бросаем специфическую ошибку
 
-async def get_registration_by_user_and_competition(
-    db: AsyncSession, *, user_id: int, competition_id: int
-) -> Optional[Registration]:
-    statement = select(Registration).where(
-        Registration.user_id == user_id,
-        Registration.competition_id == competition_id
-    )
-    result = await db.execute(statement)
-    return result.scalar_one_or_none()
+    async def get_registration_by_user_and_competition(
+        self, db: AsyncSession, *, user_id: int, competition_id: int
+    ) -> Optional[Registration]:
+        statement = select(Registration).where(
+            Registration.user_id == user_id,
+            Registration.competition_id == competition_id
+        )
+        result = await db.execute(statement)
+        return result.scalar_one_or_none()
 
-async def get_registrations_by_competition(
-    db: AsyncSession, *, competition_id: int, skip: int = 0, limit: int = 100
-) -> Sequence[Registration]:
-    """ Получает регистрации для соревнования, включая данные пользователя """
-    statement = (
-        select(Registration)
-        .where(Registration.competition_id == competition_id)
-        .options(selectinload(Registration.user)) # Загружаем юзера сразу
-        .offset(skip)
-        .limit(limit)
-    )
-    result = await db.execute(statement)
-    return result.scalars().all()
+    async def get_registrations_by_competition(
+        self, db: AsyncSession, *, competition_id: int, skip: int = 0, limit: int = 100
+    ) -> Sequence[Registration]:
+        """ Получает регистрации для соревнования, включая данные пользователя """
+        statement = (
+            select(Registration)
+            .where(Registration.competition_id == competition_id)
+            .options(selectinload(Registration.user)) # Загружаем юзера сразу
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(statement)
+        return result.scalars().all()
 
-async def get_registrations_by_user(
-    db: AsyncSession, *, user_id: int, skip: int = 0, limit: int = 100
-) -> Sequence[Registration]:
-    """ Получает соревнования, на которые зарегистрирован пользователь """
-    statement = (
-        select(Registration)
-        .where(Registration.user_id == user_id)
-        .options(selectinload(Registration.competition)) # Загружаем соревнование сразу
-        .offset(skip)
-        .limit(limit)
-    )
-    result = await db.execute(statement)
-    return result.all()
+    async def get_registrations_by_user(
+        self, db: AsyncSession, *, user_id: int, skip: int = 0, limit: int = 100
+    ) -> Sequence[Registration]:
+        """ Получает соревнования, на которые зарегистрирован пользователь """
+        statement = (
+            select(Registration)
+            .where(Registration.user_id == user_id)
+            .options(selectinload(Registration.competition)) # Загружаем соревнование сразу
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(statement)
+        return result.all()
 
-async def delete_registration(db: AsyncSession, *, user_id: int, competition_id: int) -> bool:
-    """ Удаляет регистрацию """
-    reg = await get_registration_by_user_and_competition(db, user_id=user_id, competition_id=competition_id)
-    if reg:
-        await db.delete(reg)
-        await db.commit()
-        return True
-    return False
+    async def delete_registration(self, db: AsyncSession, *, user_id: int, competition_id: int) -> bool:
+        """ Удаляет регистрацию """
+        reg = await self.get_registration_by_user_and_competition(db, user_id=user_id, competition_id=competition_id)
+        if reg:
+            await db.delete(reg)
+            await db.commit()
+            return True
+        return False
+
+# Create CRUD object
+registration = CRUDRegistration(Registration)

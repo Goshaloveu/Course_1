@@ -1,0 +1,23 @@
+version: 2
+authtoken: 2x2yK1j5QcCvoaRhg7VoxWDApzA_Tsmtir7SsxDcyim72DzM
+tunnels:
+  app: # Фронтенд
+    proto: http
+    addr: 5173
+    # Тут можно указать домен, если ngrok позволяет его закрепить
+    # domain: 4533-37-120-217-114.ngrok-free.app 
+  api: # Бэкенд
+    proto: http
+    addr: 8000
+    host_header: "localhost:8000"
+    # Тут можно указать домен, если ngrok позволяет его закрепить
+    # domain: 5a3f-37-120-217-114.ngrok-free.app
+    headers: # Для ngrok v2 и выше, возможно, response_headers: или request_headers:
+      # Этот синтаксис для добавления/изменения заголовков ответа нужно уточнить по док-ции ngrok
+      # Это может быть что-то вроде:
+      # X-My-Header: "my value"
+      # Или для CORS:
+      Access-Control-Allow-Origin: "https://4533-37-120-217-114.ngrok-free.app"
+      Vary: Origin
+      # Если нужно УДАЛИТЬ заголовок, который ngrok может добавлять (гипотетически)
+      # Access-Control-Allow-Origin: "" # (пустое значение может удалить, или специальная директива)

@@ -15,6 +15,13 @@ export interface User {
 export type CompetitionStatus = 'upcoming' | 'registration_open' | 'registration_closed' | 'ongoing' | 'finished' | 'results_published';
 export type CompetitionType = 'individual' | 'team' | 'other';
 
+// Add CompetitionFormat enum if it's not globally available from another file
+// This should mirror backend/app/models/competition.py -> CompetitionFormat
+export enum CompetitionFormat {
+    INDIVIDUAL = "individual",
+    TEAM = "team",
+}
+
 export interface Competition {
   id: string;
   title: string;
@@ -23,13 +30,38 @@ export interface Competition {
   comp_start_at: string;
   comp_end_at: string;
   status: CompetitionStatus;
-  type: CompetitionType;
+  type?: CompetitionType; // Make this optional for backward compatibility
+  format?: CompetitionFormat; // Add format field which may come from the backend
 }
+
+// Helper function to ensure consistent competition type/format 
+export const getCompetitionType = (competition: Competition): CompetitionType => {
+  // If type is defined, use it
+  if (competition.type) {
+    return competition.type;
+  }
+  
+  // If format is defined, map it to type
+  if (competition.format) {
+    if (competition.format === CompetitionFormat.INDIVIDUAL) {
+      return 'individual';
+    } else if (competition.format === CompetitionFormat.TEAM) {
+      return 'team';
+    }
+  }
+  
+  // Default fallback
+  return 'other';
+};
 
 export interface CompetitionDetail extends Competition {
   organizer_id: string;
   description: string;
   external_links_json: string;
+  // Add team-specific fields that are present on the detailed model from backend
+  min_team_members?: number | null;
+  max_team_members?: number | null;
+  roster_lock_date?: string | null; // Assuming it comes as a string date
 }
 
 // Result types

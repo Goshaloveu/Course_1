@@ -12,7 +12,8 @@ import asyncio
 from datetime import datetime
 from app.api import deps
 from app.crud import crud_competition, crud_registration, crud_result, crud_user
-from app.models.competition import Competition, CompetitionCreate, CompetitionUpdate, CompetitionRead, CompetitionStatusEnum
+from app.models.competition import Competition, CompetitionCreate, CompetitionUpdate, CompetitionStatusEnum
+from app.schemas.competition import CompetitionRead # Import from schemas instead of models
 from app.models.registration import RegistrationReadWithUser, Registration # Для participant list
 from app.models.result import ResultCreate, ResultRead, Result # Для загрузки и отображения
 from app.models.user import User, UserPublic # Для participant list

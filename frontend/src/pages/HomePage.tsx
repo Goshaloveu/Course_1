@@ -26,18 +26,28 @@ export const HomePage = () => {
         
         // If user is authenticated, check registration status for each competition
         if (isAuthenticated && user) {
-          for (let i = 0; i < competitionsWithStatus.length; i++) {
+          const updatedCompetitions = [...competitionsWithStatus];
+          
+          for (let i = 0; i < updatedCompetitions.length; i++) {
             try {
-              const status = await competitionService.checkRegistrationStatus(competitionsWithStatus[i].id);
-              competitionsWithStatus[i] = {
-                ...competitionsWithStatus[i],
+              const status = await competitionService.checkRegistrationStatus(updatedCompetitions[i].id);
+              updatedCompetitions[i] = {
+                ...updatedCompetitions[i],
                 isRegistered: status.is_registered,
                 isOrganizer: status.is_organizer
               };
             } catch (err) {
-              console.error(`Failed to check status for competition ${competitionsWithStatus[i].id}:`, err);
+              console.error(`Failed to check status for competition ${updatedCompetitions[i].id}:`, err);
+              // Keep the competition but mark status as unchecked
+              updatedCompetitions[i] = {
+                ...updatedCompetitions[i],
+                isRegistered: false,
+                isOrganizer: false
+              };
             }
           }
+          
+          competitionsWithStatus = updatedCompetitions;
         }
         
         setCompetitions(competitionsWithStatus);

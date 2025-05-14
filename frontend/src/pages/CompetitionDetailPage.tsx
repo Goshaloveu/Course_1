@@ -1,73 +1,83 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { competitionService } from '@/api/competitionService';
-import { CompetitionDetail, CompetitionResult, CompetitionStatus, TeamRegistrationPayload, Team, TeamMember } from '@/types/api';
+import { getMyTeams } from '@/api/teams';
+import { CompetitionDetail, CompetitionResult } from '@/types/api';
+import { CompetitionFormat, CompetitionStatus } from '@/types/competition';
+import { TeamReadWithMembers } from '@/types/team';
+import { TeamRegistrationReadDetailed, TeamRegistrationCreatePayload } from '@/types/teamRegistration';
 import { Button } from '@/components/ui/button';
 import { ResultsTable } from '@/components/competitions/ResultsTable';
-import { formatDate, isDateBetween } from '@/utils/dateUtils';
+import { formatDate } from '@/utils/dateUtils';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from "@/components/ui/label";
+import { Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export const CompetitionDetailPage = () => {
-  const { id } = useParams<{ id: string }>();
-  const { isAuthenticated, user } = useAuth();
+  const { id: competitionId } = useParams<{ id: string }>();
+  const { isAuthenticated, user: currentUser } = useAuth();
   
   const [competition, setCompetition] = useState<CompetitionDetail | null>(null);
   const [results, setResults] = useState<CompetitionResult[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
-  const [isRegistered, setIsRegistered] = useState<boolean>(false);
+  const [isTeamActionLoading, setIsTeamActionLoading] = useState<boolean>(false);
+  
+  const [isIndividuallyRegistered, setIsIndividuallyRegistered] = useState<boolean>(false);
   const [isOrganizer, setIsOrganizer] = useState<boolean>(false);
   
-  // Team state
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [teamName, setTeamName] = useState<string>('');
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [isCreatingTeam, setIsCreatingTeam] = useState<boolean>(false);
-  const [showTeamDialog, setShowTeamDialog] = useState<boolean>(false);
+  const [registeredTeams, setRegisteredTeams] = useState<TeamRegistrationReadDetailed[]>([]);
+  const [userLedTeams, setUserLedTeams] = useState<TeamReadWithMembers[]>([]);
+  const [selectedTeamIdToRegister, setSelectedTeamIdToRegister] = useState<string>("");
+  const [showRegisterTeamModal, setShowRegisterTeamModal] = useState<boolean>(false);
 
-  // Fetch competition details
   useEffect(() => {
     const fetchCompetitionDetails = async () => {
-      if (!id) return;
-      
+      if (!competitionId) return;
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        const data = await competitionService.getCompetitionById(id);
+        const data = await competitionService.getCompetitionById(competitionId);
         setCompetition(data);
         
-        // If results are published, fetch them
-        if (data.status === 'results_published') {
-          const resultsData = await competitionService.getCompetitionResults(id);
+        if (data.status === CompetitionStatus.RESULTS_PUBLISHED) {
+          const resultsData = await competitionService.getCompetitionResults(competitionId);
           setResults(resultsData);
         }
         
-        // Check if user is registered or is the organizer
-        if (isAuthenticated) {
+        if (isAuthenticated && currentUser) {
           try {
-            const registrationStatus = await competitionService.checkRegistrationStatus(id);
-            setIsRegistered(registrationStatus.is_registered);
+            const registrationStatus = await competitionService.checkRegistrationStatus(competitionId);
+            setIsIndividuallyRegistered(registrationStatus.is_registered);
             setIsOrganizer(registrationStatus.is_organizer);
-          } catch (error) {
-            console.error('Failed to check registration status', error);
+          } catch (err) {
+            console.error('Failed to check individual registration status', err);
           }
         }
         
-        // Fetch teams for team competition
-        if (data.type === 'team') {
+        if (data.type === CompetitionFormat.TEAM) {
           try {
-            const teamsData = await competitionService.getCompetitionTeams(id);
-            setTeams(teamsData);
-          } catch (error) {
-            console.error('Failed to fetch teams', error);
+            const regTeamsData = await competitionService.getRegisteredTeams(competitionId);
+            setRegisteredTeams(regTeamsData || []);
+
+            if (isAuthenticated && currentUser) {
+              const ledTeamsData = await getMyTeams();
+              setUserLedTeams(ledTeamsData || []);
+            }
+
+          } catch (err) {
+            console.error('Failed to fetch team data for competition:', err);
+            toast.error("Не удалось загрузить информацию о командах. Пожалуйста, попробуйте позже.");
+            // Set empty arrays to avoid null errors in render
+            setRegisteredTeams([]);
+            setUserLedTeams([]);
           }
         }
-        
-        setError(null);
       } catch (err) {
         console.error('Failed to fetch competition details:', err);
         setError('Не удалось загрузить информацию о соревновании.');
@@ -77,300 +87,418 @@ export const CompetitionDetailPage = () => {
     };
 
     fetchCompetitionDetails();
-  }, [id, isAuthenticated]);
+  }, [competitionId, isAuthenticated, currentUser]);
 
-  // Handle individual registration
   const handleRegister = async () => {
-    if (!id || !isAuthenticated) return;
-    
+    if (!competitionId || !isAuthenticated) return;
+    setIsRegistering(true);
     try {
-      setIsRegistering(true);
-      await competitionService.registerForCompetition(id);
-      setIsRegistered(true);
+      await competitionService.registerForCompetition(competitionId);
+      setIsIndividuallyRegistered(true);
       toast.success('Вы успешно зарегистрированы на соревнование!');
     } catch (err: any) {
       console.error('Failed to register for competition:', err);
-      const errorMessage = err.response?.data?.detail || 'Не удалось зарегистрироваться на соревнование.';
+      const errorMessage = err.response?.data?.detail || 'Не удалось зарегистрироваться.';
       toast.error(errorMessage);
     } finally {
       setIsRegistering(false);
     }
   };
-  
-  // Handle team creation
-  const handleCreateTeam = async () => {
-    if (!id || !isAuthenticated || !teamName.trim()) return;
-    
-    try {
-      setIsCreatingTeam(true);
-      const teamData: TeamRegistrationPayload = { name: teamName.trim() };
-      const newTeam = await competitionService.createTeam(id, teamData);
-      setTeams([...teams, newTeam]);
-      setIsRegistered(true);
-      setTeamName('');
-      setShowTeamDialog(false);
-      toast.success('Команда успешно создана!');
-    } catch (err: any) {
-      console.error('Failed to create team:', err);
-      const errorMessage = err.response?.data?.detail || 'Не удалось создать команду.';
-      toast.error(errorMessage);
-    } finally {
-      setIsCreatingTeam(false);
-    }
-  };
-  
-  // Load team members
-  const handleViewTeamMembers = async (team: Team) => {
-    setSelectedTeam(team);
-    
-    try {
-      const members = await competitionService.getTeamMembers(team.id);
-      setTeamMembers(members);
-    } catch (error) {
-      console.error('Failed to fetch team members', error);
-      toast.error('Не удалось загрузить участников команды.');
-    }
-  };
 
-  // Helper function to get status display information
-  const getStatusInfo = (status: CompetitionStatus) => {
-    switch (status) {
-      case 'upcoming':
-        return { label: 'Предстоит', color: 'bg-blue-100 text-blue-800' };
-      case 'registration_open':
-        return { label: 'Регистрация открыта', color: 'bg-green-100 text-green-800' };
-      case 'registration_closed':
-        return { label: 'Регистрация закрыта', color: 'bg-yellow-100 text-yellow-800' };
-      case 'ongoing':
-        return { label: 'В процессе', color: 'bg-purple-100 text-purple-800' };
-      case 'finished':
-        return { label: 'Завершено', color: 'bg-gray-100 text-gray-800' };
-      case 'results_published':
-        return { label: 'Результаты опубликованы', color: 'bg-indigo-100 text-indigo-800' };
-      default:
-        return { label: 'Неизвестный статус', color: 'bg-gray-100 text-gray-800' };
+  const getCurrentUserTeamRegistration = (): TeamRegistrationReadDetailed | undefined => {
+    if (!currentUser || !userLedTeams.length || !registeredTeams) return undefined;
+    for (const ledTeam of userLedTeams) {
+        const currentUserIdNum = Number(currentUser.id);
+        if (ledTeam.leader_id !== currentUserIdNum) continue;
+
+        const registration = registeredTeams.find(rt => rt.team_id === ledTeam.id);
+        if (registration) {
+            return registration; 
+        }
     }
+    return undefined;
   };
+  const currentUserRegisteredTeamDetails = getCurrentUserTeamRegistration();
 
-  // Render loading state
-  if (loading) {
-    return <div className="text-center py-12">Загрузка...</div>;
-  }
+  const renderTeamRegistrationSection = () => {
+    if (!competition || competition.type !== CompetitionFormat.TEAM) return null;
 
-  // Render error state
-  if (error || !competition) {
+    const isRegOpen = competition.status === CompetitionStatus.REGISTRATION_OPEN;
+    const isUpcoming = competition.status === CompetitionStatus.UPCOMING;
+
+    const userLeadsAnyTeam = userLedTeams.some(lt => lt.leader_id === Number(currentUser?.id));
+
+    const canRegisterTeam = isAuthenticated && 
+                            isRegOpen && 
+                            !currentUserRegisteredTeamDetails && 
+                            userLeadsAnyTeam;
+                            
+    const canWithdrawTeam = isAuthenticated && 
+                            currentUserRegisteredTeamDetails && 
+                            (isRegOpen || isUpcoming) &&
+                            Number(currentUser?.id) === currentUserRegisteredTeamDetails.team.leader_id; 
+
     return (
-      <div className="text-center py-12">
-        <p className="text-red-500 mb-4">{error || 'Соревнование не найдено'}</p>
-        <Link to="/">
-          <Button>Вернуться на главную</Button>
-        </Link>
-      </div>
+        <div className="mt-6 bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold mb-4">Зарегестрированные команды</h2>
+            <div className="mb-4">
+                {canRegisterTeam && (
+                    <Button onClick={() => setShowRegisterTeamModal(true)} disabled={isTeamActionLoading}>
+                        {isTeamActionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Зарегистрировать команду
+                    </Button>
+                )}
+                {currentUserRegisteredTeamDetails && (
+                    <p className="text-green-600 mb-2">
+                        Ваша команда "{currentUserRegisteredTeamDetails.team.name}" зарегистрирована.
+                        {canWithdrawTeam && (
+                             <Button variant="outline" size="sm" className="ml-4" onClick={handleWithdrawTeam} disabled={isTeamActionLoading}>
+                                {isTeamActionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Снять команду
+                            </Button>
+                        )}
+                    </p>
+                )}
+                {isAuthenticated && !userLeadsAnyTeam && isRegOpen && (
+                    <div className="mt-2">
+                        <p className="text-gray-600">Вы должны создать команду, чтобы зарегистрироваться на это соревнование.</p>
+                        <Button asChild variant="outline" className="mt-2">
+                            <Link to="/teams/create">Создать команду</Link>
+                        </Button>
+                    </div>
+                )}
+                {!isRegOpen && (
+                    <p className="text-gray-600">Регистрация на это соревнование {
+                        competition.status === CompetitionStatus.REGISTRATION_CLOSED ? 'закрыта' : 
+                        competition.status === CompetitionStatus.UPCOMING ? 'предстоит' : 
+                        'завершено'
+                    }.</p>
+                )}
+            </div>
+
+            <h3 className="text-lg font-medium mt-6 mb-3">Зарегистрированные команды</h3>
+            {registeredTeams.length > 0 ? (
+                <div className="space-y-3">
+                    {registeredTeams.map((registration) => (
+                        <div key={registration.id} className="flex justify-between items-center border-b pb-2">
+                            <div>
+                                <p className="font-medium">{registration.team.name}</p>
+                                <p className="text-sm text-gray-500">
+                                    Регистрациия: {formatDate(new Date(registration.registration_date))}
+                                </p>
+                            </div>
+                            <Link 
+                                to={`/teams/${registration.team_id}`} 
+                                className="text-blue-600 hover:underline text-sm"
+                            >
+                                Команда
+                            </Link>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-gray-600">Еще нет команд, зарегистрированных на это соревнование.</p>
+            )}
+        </div>
     );
-  }
+  };
 
-  // Parse external links from JSON
-  let externalLinks: Record<string, string> = {};
-  try {
-    if (competition.external_links_json) {
-      externalLinks = JSON.parse(competition.external_links_json);
+  const handleWithdrawTeam = async () => {
+    if (!competitionId || !currentUserRegisteredTeamDetails) return;
+    
+    setIsTeamActionLoading(true);
+    try {
+      await competitionService.withdrawTeamFromCompetition(
+        competitionId, 
+        currentUserRegisteredTeamDetails.team_id
+      );
+      
+      // Remove the withdrawn team from registeredTeams
+      setRegisteredTeams(prev => 
+        prev.filter(reg => reg.team_id !== currentUserRegisteredTeamDetails.team_id)
+      );
+      
+      toast.success('Ваша команда снята с соревнований.');
+    } catch (err: any) {
+      console.error('Не удалось отозвать команду:', err);
+      toast.error(err.response?.data?.detail || 'Не удалось снять команду с соревнований.');
+    } finally {
+      setIsTeamActionLoading(false);
     }
-  } catch (err) {
-    console.error('Failed to parse external links:', err);
-  }
+  };
 
-  // Check if registration is open based on status
-  const canRegister = competition.status === 'registration_open';
-  
-  // Get status display info
-  const statusInfo = getStatusInfo(competition.status);
-  
-  // Determine if user can register (not organizer, not already registered, registration is open)
-  const userCanRegister = isAuthenticated && canRegister && !isRegistered && !isOrganizer;
-  
-  // Get registration button text
-  const getRegistrationButtonText = () => {
+  const handleRegisterSelectedTeam = async () => {
+    if (!competitionId || !selectedTeamIdToRegister) {
+      toast.error('Пожалуйста, выберите команду для регистрации');
+      return;
+    }
+    
+    setIsTeamActionLoading(true);
+    try {
+      const payload: TeamRegistrationCreatePayload = {
+        team: { id: parseInt(selectedTeamIdToRegister) }
+      };
+      
+      const registrationResult = await competitionService.registerTeamForCompetition(
+        competitionId, 
+        payload
+      );
+      
+      // Fetch the team details for display
+      const selectedTeam = userLedTeams.find(t => t.id === parseInt(selectedTeamIdToRegister));
+      
+      if (selectedTeam && registrationResult) {
+        // Add the new registration to the list with team details
+        const newRegistration: TeamRegistrationReadDetailed = {
+          ...registrationResult,
+          team: selectedTeam
+        };
+        
+        setRegisteredTeams(prev => [...prev, newRegistration]);
+        toast.success(`Команда "${selectedTeam.name}" успешно зарегистрирована!`);
+        setShowRegisterTeamModal(false);
+        setSelectedTeamIdToRegister("");
+      }
+    } catch (err: any) {
+      console.error('Ошибка регистрации команды:', err);
+      toast.error(err.response?.data?.detail || 'Не удалось зарегистрировать команду на соревнование.');
+    } finally {
+      setIsTeamActionLoading(false);
+    }
+  };
+
+  const getStatusInfo = (statusValue: CompetitionStatus | string | undefined) => {
+    if (!statusValue) return { color: 'gray', text: 'Неизвестно' };
+    
+    // Convert string status to enum if needed
+    const status = typeof statusValue === 'string' 
+      ? statusValue as CompetitionStatus
+      : statusValue;
+    
+    switch (status) {
+      case CompetitionStatus.UPCOMING:
+        return { color: 'blue', text: 'Предстоит' };
+      case CompetitionStatus.REGISTRATION_OPEN:
+        return { color: 'green', text: 'Регистрация открыта' };
+      case CompetitionStatus.REGISTRATION_CLOSED:
+        return { color: 'yellow', text: 'Регистрация закрыта' };
+      case CompetitionStatus.ONGOING:
+        return { color: 'purple', text: 'Проходит' };
+      case CompetitionStatus.FINISHED:
+        return { color: 'gray', text: 'Завершено' };
+      case CompetitionStatus.RESULTS_PUBLISHED:
+        return { color: 'indigo', text: 'Результаты опубликованы' };
+      default:
+        return { color: 'gray', text: statusValue };
+    }
+  };
+
+  const getIndividualRegistrationButtonText = () => {
     if (isRegistering) return 'Регистрация...';
-    if (isRegistered) return 'Вы зарегистрированы';
+    if (isIndividuallyRegistered) return 'Уже зарегистрирован';
     if (isOrganizer) return 'Вы организатор';
+    if (!isAuthenticated) return 'Войдите для регистрации';
     return 'Зарегистрироваться';
   };
-  
-  return (
-    <div className="space-y-8">
-      {/* Back button */}
-      <Link to="/" className="inline-flex items-center text-blue-600 hover:text-blue-800">
-        &larr; Назад к списку соревнований
-      </Link>
 
-      {/* Competition header */}
+  if (loading) {
+    return <div className="container mx-auto p-4 flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+
+  if (error || !competition) {
+    return <div className="container mx-auto p-4">Ошибка: {error || 'Соревнование не найдено'}</div>;
+  }
+
+  const statusInfo = getStatusInfo(competition.status);
+  const isRegistrationOpen = competition.status === CompetitionStatus.REGISTRATION_OPEN;
+  const isTeamCompetition = competition.type === CompetitionFormat.TEAM;
+
+  return (
+    <div className="container mx-auto p-4">
       <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-start">
-          <h1 className="text-3xl font-bold truncate max-w-[70%]">{competition.title}</h1>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
-            {statusInfo.label}
-          </span>
+        <div className="flex justify-between items-start mb-4">
+          <h1 className="text-2xl font-bold">{competition.title}</h1>
+          <div className={`px-3 py-1 rounded-full text-sm font-medium bg-${statusInfo.color}-100 text-${statusInfo.color}-800`}>
+            {statusInfo.text}
+          </div>
         </div>
         
-        {/* Competition details */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        {competition.description && (
+          <div className="mb-6">
+            <h2 className="text-lg font-medium mb-2">Описание</h2>
+            <p className="text-gray-700">{competition.description}</p>
+          </div>
+        )}
+        
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div>
-            <h2 className="text-xl font-semibold mb-2">Информация</h2>
-            <p className="text-gray-700 whitespace-pre-line">{competition.description}</p>
-            
-            {/* External links */}
-            {Object.keys(externalLinks).length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold mb-2">Ссылки</h3>
-                <ul className="space-y-1">
-                  {Object.entries(externalLinks).map(([name, url]) => (
-                    <li key={name}>
-                      <a 
-                        href={url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        {name.charAt(0).toUpperCase() + name.slice(1)}
-                      </a>
+            <h2 className="text-lg font-medium mb-2">Детали</h2>
+            <ul className="space-y-2">
+              <li className="flex">
+                <span className="font-medium w-40">Тип:</span>
+                <span>{isTeamCompetition ? 'Командное соревнование' : 'Индивидуальное соревнование'}</span>
+              </li>
+              {competition.reg_start_at && (
+                <li className="flex">
+                  <span className="font-medium w-40">Открытие регистрации:</span>
+                  <span>{formatDate(new Date(competition.reg_start_at))}</span>
+                </li>
+              )}
+              {competition.reg_end_at && (
+                <li className="flex">
+                  <span className="font-medium w-40">Закрытие регистрации:</span>
+                  <span>{formatDate(new Date(competition.reg_end_at))}</span>
+                </li>
+              )}
+              {competition.comp_start_at && (
+                <li className="flex">
+                  <span className="font-medium w-40">Начало соревнования:</span>
+                  <span>{formatDate(new Date(competition.comp_start_at))}</span>
+                </li>
+              )}
+              {competition.comp_end_at && (
+                <li className="flex">
+                  <span className="font-medium w-40">Конец соревнования:</span>
+                  <span>{formatDate(new Date(competition.comp_end_at))}</span>
+                </li>
+              )}
+              {isTeamCompetition && (
+                <>
+                  {competition.min_team_members && (
+                    <li className="flex">
+                      <span className="font-medium w-40">Минимальный размер команды:</span>
+                      <span>{competition.min_team_members} members</span>
                     </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                  )}
+                  {competition.max_team_members && (
+                    <li className="flex">
+                      <span className="font-medium w-40">Максимальный размер команды:</span>
+                      <span>{competition.max_team_members} members</span>
+                    </li>
+                  )}
+                  {competition.roster_lock_date && (
+                    <li className="flex">
+                      <span className="font-medium w-40">Дата блокировки состава команды:</span>
+                      <span>{formatDate(new Date(competition.roster_lock_date))}</span>
+                    </li>
+                  )}
+                </>
+              )}
+            </ul>
           </div>
           
           <div>
-            <h2 className="text-xl font-semibold mb-2">Даты и время</h2>
-            <div className="space-y-4">
+            <h2 className="text-lg font-medium mb-2">Регистрация</h2>
+            {!isTeamCompetition ? (
+              // Individual competition registration section
               <div>
-                <h3 className="font-medium">Регистрация</h3>
-                <p className="text-gray-700">
-                  {formatDate(competition.reg_start_at)} - {formatDate(competition.reg_end_at)}
-                </p>
-              </div>
-              <div>
-                <h3 className="font-medium">Соревнование</h3>
-                <p className="text-gray-700">
-                  {formatDate(competition.comp_start_at)} - {formatDate(competition.comp_end_at)}
-                </p>
-              </div>
-              <div>
-                <h3 className="font-medium">Тип соревнования</h3>
-                <p className="text-gray-700">
-                  {competition.type === 'individual' ? 'Индивидуальное' : 
-                   competition.type === 'team' ? 'Командное' : 'Другое'}
-                </p>
-              </div>
-            </div>
-            
-            {/* Registration buttons */}
-            {isAuthenticated && (
-              <div className="mt-6">
-                {competition.type === 'individual' ? (
-                  <Button 
-                    onClick={handleRegister}
-                    disabled={isRegistering || isRegistered || isOrganizer || !canRegister}
-                    className="w-full"
-                  >
-                    {getRegistrationButtonText()}
-                  </Button>
-                ) : competition.type === 'team' ? (
-                  <>
-                    <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
-                      <DialogTrigger asChild>
-                        <Button 
-                          disabled={isRegistering || isRegistered || isOrganizer || !canRegister}
-                          className="w-full"
-                        >
-                          {getRegistrationButtonText()}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Создание команды</DialogTitle>
-                          <DialogDescription>
-                            Введите название вашей команды для участия в соревновании.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <label htmlFor="team-name" className="text-sm font-medium">Название команды</label>
-                            <Input
-                              id="team-name"
-                              placeholder="Введите название команды"
-                              value={teamName}
-                              onChange={(e) => setTeamName(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button onClick={() => setShowTeamDialog(false)} variant="outline">Отмена</Button>
-                          <Button 
-                            onClick={handleCreateTeam}
-                            disabled={isCreatingTeam || !teamName.trim()}
-                          >
-                            {isCreatingTeam ? 'Создание...' : 'Создать команду'}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </>
-                ) : null}
-                
-                {!canRegister && !isRegistered && !isOrganizer && (
-                  <p className="text-sm text-gray-500 mt-2 text-center">
-                    Регистрация в настоящее время недоступна
+                <p className="mb-3">Зарегистрироваться как индивидуальный участник</p>
+                <Button 
+                  onClick={handleRegister} 
+                  disabled={isRegistering || isIndividuallyRegistered || isOrganizer || !isAuthenticated || !isRegistrationOpen}
+                  className="w-full sm:w-auto"
+                >
+                  {isRegistering && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {getIndividualRegistrationButtonText()}
+                </Button>
+                {!isRegistrationOpen && !isIndividuallyRegistered && !isOrganizer && (
+                  <p className="text-gray-600 mt-2 text-sm">
+                    Регистрация {
+                      competition.status === CompetitionStatus.UPCOMING ? 'еще не открыта' : 
+                      competition.status === CompetitionStatus.REGISTRATION_CLOSED ? 'закрыта' : 
+                      'больше недоступна'
+                    }.
                   </p>
                 )}
               </div>
+            ) : (
+              // Team competition information
+              <div>
+                <p className="mb-3">Это командное соревнование. Пожалуйста, зарегистрируйте свою команду ниже.</p>
+                <Link to="/teams">
+                  <Button variant="outline">Просмотреть свои команды</Button>
+                </Link>
+              </div>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Teams section for team competitions */}
-      {competition.type === 'team' && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-bold mb-4">Команды</h2>
-          {teams.length === 0 ? (
-            <p className="text-center py-6 text-gray-500">Пока нет зарегистрированных команд.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {teams.map(team => (
-                <div key={team.id} className="border rounded-md p-4 hover:bg-gray-50 cursor-pointer" onClick={() => handleViewTeamMembers(team)}>
-                  <h3 className="font-medium">{team.name}</h3>
-                </div>
+        
+        {competition.external_links && Object.keys(competition.external_links).length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-medium mb-2">Ссылки</h2>
+            <ul className="space-y-1">
+              {Object.entries(competition.external_links).map(([key, url]) => (
+                <li key={key}>
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                  </a>
+                </li>
               ))}
-            </div>
-          )}
-          
-          {selectedTeam && (
-            <div className="mt-6">
-              <h3 className="text-xl font-semibold mb-2">Состав команды: {selectedTeam.name}</h3>
-              {teamMembers.length === 0 ? (
-                <p>В команде пока нет участников.</p>
-              ) : (
-                <ul className="list-disc pl-6">
-                  {teamMembers.map(member => (
-                    <li key={member.user_id} className="mb-1">
-                      {member.first_name} {member.last_name} {member.username ? `(@${member.username})` : ''}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Results section */}
-      {competition.status === 'results_published' && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-bold mb-4">Результаты</h2>
+            </ul>
+          </div>
+        )}
+      </div>
+      
+      {/* Team Registration Section (only for team competitions) */}
+      {isTeamCompetition && renderTeamRegistrationSection()}
+      
+      {/* Results Section (only if results are published) */}
+      {competition.status === CompetitionStatus.RESULTS_PUBLISHED && results.length > 0 && (
+        <div className="mt-6 bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4">Результаты</h2>
           <ResultsTable results={results} />
         </div>
       )}
+      
+      {/* Team Registration Dialog */}
+      <Dialog open={showRegisterTeamModal} onOpenChange={setShowRegisterTeamModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Зарегистрировать свою команду</DialogTitle>
+            <DialogDescription>
+              Выберите команду, которую вы хотите зарегистрировать для этого соревнования.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <Label htmlFor="team-select" className="text-sm font-medium">
+              Выберите команду
+            </Label>
+            <Select value={selectedTeamIdToRegister} onValueChange={setSelectedTeamIdToRegister}>
+              <SelectTrigger id="team-select" className="w-full mt-1">
+                <SelectValue placeholder="Выберите команду" />
+              </SelectTrigger>
+              <SelectContent>
+                {userLedTeams
+                  .filter(team => team.leader_id === Number(currentUser?.id)) // Only show teams where user is leader
+                  .map(team => (
+                    <SelectItem key={team.id} value={String(team.id)}>
+                      {team.name} ({team.members.length} members)
+                    </SelectItem>
+                  ))
+                }
+              </SelectContent>
+            </Select>
+            
+            {competition.min_team_members && (
+              <p className="text-sm text-gray-500 mt-2">
+                Примечание: Команды должны иметь не менее {competition.min_team_members} участников для участия.
+              </p>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRegisterTeamModal(false)}>
+              Отменить
+            </Button>
+            <Button 
+              onClick={handleRegisterSelectedTeam} 
+              disabled={!selectedTeamIdToRegister || isTeamActionLoading}
+            >
+              {isTeamActionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Зарегистрировать команду
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }; 

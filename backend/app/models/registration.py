@@ -8,8 +8,8 @@ from .user import UserPublic
 from .competition import CompetitionPublic
 
 if TYPE_CHECKING:
-    from .user import User
-    from .competition import Competition
+    from app.models.user import User
+    from app.models.competition import Competition
 
 class RegistrationBase(SQLModel):
     user_id: int = Field(foreign_key="user.id", primary_key=True, index=True) # Составной ПК
@@ -17,13 +17,16 @@ class RegistrationBase(SQLModel):
 
 class Registration(RegistrationBase, table=True):
     # Определяем составной первичный ключ и уникальность пары
-    __table_args__ = (UniqueConstraint("user_id", "competition_id", name="uq_user_competition_registration"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "competition_id", name="uq_user_competition_registration"),
+        {'extend_existing': True}
+    )
 
     registered_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
-    # Связи
-    user: 'User' = Relationship(back_populates="registrations")
-    competition: 'Competition' = Relationship(back_populates="registrations")
+    # Relationships with viewonly to prevent circular references
+    user: "app.models.user.User" = Relationship(sa_relationship_kwargs={"viewonly": True})
+    competition: "app.models.competition.Competition" = Relationship(sa_relationship_kwargs={"viewonly": True})
 
 # Модель для создания регистрации (просто ID)
 class RegistrationCreate(SQLModel):
@@ -33,6 +36,12 @@ class RegistrationCreate(SQLModel):
 # Модель для чтения регистрации (возможно, с деталями)
 class RegistrationRead(RegistrationBase):
     registered_at: datetime
+
+# Модель для обновления регистрации
+class RegistrationUpdate(SQLModel):
+    # Usually just status or other metadata that might change
+    # Since our registration doesn't have status field yet, this is empty
+    pass
 
 # Модель для отображения участника в админке
 class RegistrationReadWithUser(SQLModel):

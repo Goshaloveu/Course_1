@@ -8,6 +8,12 @@ export const authService = {
     return response.data;
   },
 
+  // Handle Telegram Bot auth token
+  telegramBotAuth: async (authToken: string): Promise<AuthResponse> => {
+    const response = await apiClient.post<AuthResponse>('/auth/telegram-bot', { auth_token: authToken });
+    return response.data;
+  },
+
   // Get current user information
   getCurrentUser: async (): Promise<User> => {
     const response = await apiClient.get<User>('/users/me');
