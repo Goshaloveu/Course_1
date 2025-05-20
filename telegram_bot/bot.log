@@ -59,3 +59,12 @@ INFO:     206.168.34.65:50106 - "GET /favicon.ico HTTP/1.1" 404 Not Found
 WARNING:  Invalid HTTP request received.
 INFO:     206.168.34.65:33400 - "GET /favicon.ico HTTP/1.1" 404 Not Found
 WARNING:  Invalid HTTP request received.
+WARNING:aiogram.dispatcher:Received SIGTERM signal
+INFO:aiogram.dispatcher:Polling stopped for bot @YL_CodeBot id=7124002443 - 'YL Competitions'
+INFO:aiogram.dispatcher:Polling stopped
+INFO:__main__:Stopping API server
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6200]
+INFO:__main__:All services stopped
