@@ -3253,3 +3253,23 @@ DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHe
 INFO:     127.0.0.1:56210 - "GET /api/v1/competitions HTTP/1.1" 200 OK
 DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
 INFO:     127.0.0.1:56218 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:42024 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:42032 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:60274 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:60288 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:37658 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:37664 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:55202 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:55204 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:43074 - "GET /api/v1/competitions HTTP/1.1" 200 OK
+DEBUG: Headers before sending to client for path /api/v1/competitions: MutableHeaders({'content-length': '2988', 'content-type': 'application/json'})
+INFO:     127.0.0.1:43090 - "GET /api/v1/competitions HTTP/1.1" 200 OK
