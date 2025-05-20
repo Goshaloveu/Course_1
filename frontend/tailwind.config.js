@@ -48,6 +48,23 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Custom color palette
+        slate: {
+          '50': '#F8FAFC',
+          '800': '#1E293B',
+          '900': '#0F172A',
+        },
+        blue: {
+          '500': '#3b82f6',
+        },
+        gray: {
+          '400': '#94a3b8',
+          '500': '#64748b',
+          '600': '#475569',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', 'Unbounded'],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -63,10 +80,26 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: 0 },
         },
+        "ripple": {
+          "0%": { transform: "scale(0)", opacity: 1 },
+          "100%": { transform: "scale(4)", opacity: 0 },
+        },
+        "theme-toggle": {
+          "0%": { transform: "scale(1) rotate(0)" },
+          "50%": { transform: "scale(0.5) rotate(180deg)" },
+          "100%": { transform: "scale(1) rotate(360deg)" },
+        },
+        "spin-slow": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        }
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "ripple": "ripple 0.5s ease-out forwards",
+        "theme-toggle": "theme-toggle 0.3s ease-in-out",
+        "spin-slow": "spin-slow 0.3s ease-in-out",
       },
     },
   },

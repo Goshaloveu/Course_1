@@ -1,0 +1,61 @@
+nohup: ignoring input
+INFO:__main__:Starting Telegram Bot integration services
+INFO:__main__:Bot API will be available at: http://yl.com.ru:3001
+INFO:__main__:Frontend URL configured as: http://yl.com.ru
+INFO:__main__:Backend API URL configured as: http://yl.com.ru/api/v1
+7124002443:AAFEtapz9JFctZ0zlSfU-yXoHIRyC-AO03E
+INFO:__main__:Starting API server on yl.com.ru:3001
+INFO:     Started server process [6200]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://yl.com.ru:3001 (Press CTRL+C to quit)
+INFO:__main__:Starting Telegram bot
+INFO:root:Starting Telegram authentication bot
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @YL_CodeBot id=7124002443 - 'YL Competitions'
+INFO:aiogram.event:Update id=185382440 is handled. Duration 253 ms by bot id=7124002443
+INFO:aiogram.event:Update id=185382441 is handled. Duration 195 ms by bot id=7124002443
+INFO:aiogram.event:Update id=185382442 is handled. Duration 372 ms by bot id=7124002443
+WARNING:  Invalid HTTP request received.
+INFO:     66.132.153.57:59726 - "GET / HTTP/1.1" 200 OK
+INFO:     66.132.153.57:58234 - "GET / HTTP/1.1" 200 OK
+INFO:     66.132.153.57:58246 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+WARNING:  Invalid HTTP request received.
+INFO:     66.132.153.57:58274 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+INFO:     47.237.100.246:33748 - "GET / HTTP/1.0" 200 OK
+INFO:     47.237.100.246:33750 - "GET / HTTP/1.1" 200 OK
+INFO:     47.237.100.246:33762 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     123.160.223.75:63146 - "GET / HTTP/1.1" 200 OK
+INFO:     123.160.223.75:63261 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     111.7.96.173:28426 - "GET / HTTP/1.1" 200 OK
+INFO:     111.7.96.173:28542 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     111.7.96.172:32398 - "GET / HTTP/1.1" 200 OK
+INFO:     111.7.96.172:32488 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     3.149.59.26:40860 - "GET / HTTP/1.1" 200 OK
+WARNING:  Invalid HTTP request received.
+INFO:     3.137.73.221:34150 - "GET / HTTP/1.1" 200 OK
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+INFO:     66.132.153.54:59988 - "GET / HTTP/1.1" 200 OK
+INFO:     66.132.153.54:34022 - "GET / HTTP/1.1" 200 OK
+INFO:     66.132.153.54:34030 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+WARNING:  Invalid HTTP request received.
+INFO:     66.132.153.54:53280 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+INFO:     45.33.109.17:56703 - "GET / HTTP/1.1" 200 OK
+INFO:     172.104.11.46:57504 - "GET / HTTP/1.1" 200 OK
+INFO:     206.168.34.65:50090 - "GET / HTTP/1.1" 200 OK
+INFO:     206.168.34.65:50106 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+WARNING:  Invalid HTTP request received.
+INFO:     206.168.34.65:33400 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+WARNING:  Invalid HTTP request received.

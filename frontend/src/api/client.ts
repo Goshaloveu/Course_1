@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API URL для локального сервера
-const API_URL = 'http://localhost:8000';
+const API_URL = 'https://yl.com.ru';
 
 const apiClient = axios.create({
   baseURL: `${API_URL}/api/v1`,

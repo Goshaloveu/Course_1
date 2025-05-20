@@ -45,8 +45,14 @@ class Settings(BaseSettings):
              computed_origins.append(self.FRONTEND_HOST)
         
         # Добавляем поддержку ngrok для тестирования
-        ngrok_domains = ["https://4533-37-120-217-114.ngrok-free.app"]
-        for domain in ngrok_domains:
+        prod_domains = ["http://yl.com.ru", "https://yl.com.ru"]
+        for domain in prod_domains:
+            if domain not in computed_origins:
+                computed_origins.append(domain)
+        
+        # Добавляем Telegram WebApp домены
+        telegram_domains = ["https://web.telegram.org", "https://telegram.org"]
+        for domain in telegram_domains:
             if domain not in computed_origins:
                 computed_origins.append(domain)
                 
@@ -57,8 +63,8 @@ class Settings(BaseSettings):
     # --- Настройки SQLite ---
     # Файл будет создан в директории backend/sqlitedb/
     # SQLITE_DB_FILE: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'sqlitedb', 'database.db')
-    # Поднимаемся на ТРИ уровня от backend/app/core/ чтобы попасть в корень Course_1
-    SQLITE_DB_FILE: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "users.db")
+    # Поднимаемся на ТРИ уровня от backend/app/core/config.py чтобы попасть в Course_1/backend/
+    SQLITE_DB_FILE: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "users.db")
 
     @computed_field # type: ignore[prop-decorator]
     @property

@@ -3,11 +3,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
 # Загружаем переменные из корневого .env файла
-load_dotenv("C:/Users/gosha/Course_1/.env")
+load_dotenv("/root/Course_1/.env")
 
 class BotSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file="C:/Users/gosha/Course_1/.env",
+        env_file="/root/Course_1/.env",
         env_file_encoding="utf-8",
         env_ignore_empty=True,
         extra="ignore",
@@ -17,11 +17,11 @@ class BotSettings(BaseSettings):
     BOT_TOKEN: str = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     
     # Backend API configuration
-    API_BASE_URL: str = os.environ.get("API_BASE_URL", "http://localhost:8000/api/v1")
+    API_BASE_URL: str = os.environ.get("API_BASE_URL", "http://yl.com.ru/api/v1")
     API_BOT_KEY: str = os.environ.get("TELEGRAM_BOT_API_KEY", "")
     
     # Frontend URL
-    FRONTEND_URL: str = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    FRONTEND_URL: str = os.environ.get("FRONTEND_URL", "http://yl.com.ru")
     
     # Webhook settings (for production)
     WEBHOOK_HOST: str = os.environ.get("WEBHOOK_HOST", "")
@@ -29,7 +29,7 @@ class BotSettings(BaseSettings):
     WEBHOOK_URL: str = os.environ.get("WEBHOOK_URL", "")
     
     # Webhook server settings
-    WEBAPP_HOST: str = os.environ.get("WEBAPP_HOST", "localhost")
+    WEBAPP_HOST: str = os.environ.get("WEBAPP_HOST", "yl.com.ru")
     WEBAPP_PORT: int = int(os.environ.get("WEBAPP_PORT", 3001))
     
     # Redis settings (for FSM storage in production)

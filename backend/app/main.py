@@ -20,9 +20,7 @@ app = FastAPI(
 # Конфигурация CORS для работы с конкретными доменами
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://4533-37-120-217-114.ngrok-free.app"  # Только фронтенд ngrok URL для теста
-    ] + settings.all_cors_origins,
+    allow_origins=settings.all_cors_origins,
     allow_credentials=True,  # Необходимо для передачи заголовков авторизации
     allow_methods=["*"],
     allow_headers=["*"]
@@ -33,18 +31,17 @@ app.add_middleware(
 async def log_and_modify_headers_debug(request: Request, call_next):
     response: Response = await call_next(request)
     print(f"DEBUG: Headers before sending to client for path {request.url.path}: {response.headers}")
-    # Часть с принудительным изменением заголовка закомментирована, FastAPI уже устанавливает правильный
-    # if response.headers.get("access-control-allow-origin") == "*" and \
-    #    response.headers.get("access-control-allow-credentials") == "true":
-    #     print("DEBUG: Detected '*' in access-control-allow-origin with credentials, attempting to override.")
-    #     correct_origin = "https://4533-37-120-217-114.ngrok-free.app"
-    #     response.headers["access-control-allow-origin"] = correct_origin
-    #     current_vary = response.headers.get("vary")
-    #     if current_vary:
-    #         if "Origin" not in current_vary.replace(" ", "").split(","):
-    #             response.headers["vary"] = f"{current_vary}, Origin"
-    #     else:
-    #         response.headers["vary"] = "Origin"
+    
+    # Добавляем правильные заголовки CSP для Telegram OAuth
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'self' https://oauth.telegram.org https://telegram.org;"
+    
+    # Установка CORS заголовков, если их нет
+    if "access-control-allow-origin" not in response.headers:
+        origin = request.headers.get("origin")
+        if origin and origin in settings.all_cors_origins:
+            response.headers["access-control-allow-origin"] = origin
+            response.headers["access-control-allow-credentials"] = "true"
+    
     return response
 
 # Подключаем роутер с префиксом /api/v1

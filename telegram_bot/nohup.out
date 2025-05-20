@@ -1,0 +1,23 @@
+INFO:__main__:Starting Telegram Bot integration services
+INFO:__main__:Bot API will be available at: http://yl.com.ru:3001
+INFO:__main__:Frontend URL configured as: http://yl.com.ru
+INFO:__main__:Backend API URL configured as: http://yl.com.ru/api/v1
+7124002443:AAFEtapz9JFctZ0zlSfU-yXoHIRyC-AO03E
+INFO:__main__:Starting API server on yl.com.ru:3001
+INFO:     Started server process [5493]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://yl.com.ru:3001 (Press CTRL+C to quit)
+INFO:__main__:Starting Telegram bot
+INFO:root:Starting Telegram authentication bot
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @YL_CodeBot id=7124002443 - 'YL Competitions'
+INFO:aiogram.event:Update id=185382439 is handled. Duration 249 ms by bot id=7124002443
+WARNING:aiogram.dispatcher:Received SIGINT signal
+INFO:aiogram.dispatcher:Polling stopped for bot @YL_CodeBot id=7124002443 - 'YL Competitions'
+INFO:aiogram.dispatcher:Polling stopped
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [5493]
+INFO:__main__:All services stopped

@@ -27,8 +27,10 @@ export default defineConfig(({ mode }) => {
     server: {
       // Разрешаем хосты ngrok для тестирования OAuth
       allowedHosts: [
-        '4533-37-120-217-114.ngrok-free.app',
-        '*.ngrok-free.app', // Разрешаем все поддомены ngrok для будущих сессий
+        'yl.com.ru',
+        'www.yl.com.ru',
+        '127.0.0.1',
+        'localhost'
       ]
     }
   }
