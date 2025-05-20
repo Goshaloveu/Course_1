@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 class CompetitionStatusEnum(str, Enum):
     UPCOMING = 'upcoming'
     REGISTRATION_OPEN = 'registration_open'
-    REGISTRATION_CLOSED = 'registration_closed'
     ONGOING = 'ongoing'
+    CLOSED = 'closed'
     FINISHED = 'finished'
     RESULTS_PUBLISHED = 'results_published'
 

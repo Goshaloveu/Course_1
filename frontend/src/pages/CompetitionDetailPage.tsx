@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { competitionService } from '@/api/competitionService';
-import { CompetitionDetail, CompetitionResult, CompetitionStatus, TeamRegistrationPayload, Team, TeamMember } from '@/types/api';
+import { CompetitionDetail, CompetitionResult } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { ResultsTable } from '@/components/competitions/ResultsTable';
 import { formatDate, isDateBetween } from '@/utils/dateUtils';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export const CompetitionDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,15 +18,6 @@ export const CompetitionDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [isRegistered, setIsRegistered] = useState<boolean>(false);
-  const [isOrganizer, setIsOrganizer] = useState<boolean>(false);
-  
-  // Team state
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [teamName, setTeamName] = useState<string>('');
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [isCreatingTeam, setIsCreatingTeam] = useState<boolean>(false);
-  const [showTeamDialog, setShowTeamDialog] = useState<boolean>(false);
 
   // Fetch competition details
   useEffect(() => {
@@ -46,27 +35,6 @@ export const CompetitionDetailPage = () => {
           setResults(resultsData);
         }
         
-        // Check if user is registered or is the organizer
-        if (isAuthenticated) {
-          try {
-            const registrationStatus = await competitionService.checkRegistrationStatus(id);
-            setIsRegistered(registrationStatus.is_registered);
-            setIsOrganizer(registrationStatus.is_organizer);
-          } catch (error) {
-            console.error('Failed to check registration status', error);
-          }
-        }
-        
-        // Fetch teams for team competition
-        if (data.type === 'team') {
-          try {
-            const teamsData = await competitionService.getCompetitionTeams(id);
-            setTeams(teamsData);
-          } catch (error) {
-            console.error('Failed to fetch teams', error);
-          }
-        }
-        
         setError(null);
       } catch (err) {
         console.error('Failed to fetch competition details:', err);
@@ -77,9 +45,9 @@ export const CompetitionDetailPage = () => {
     };
 
     fetchCompetitionDetails();
-  }, [id, isAuthenticated]);
+  }, [id]);
 
-  // Handle individual registration
+  // Handle registration
   const handleRegister = async () => {
     if (!id || !isAuthenticated) return;
     
@@ -88,67 +56,11 @@ export const CompetitionDetailPage = () => {
       await competitionService.registerForCompetition(id);
       setIsRegistered(true);
       toast.success('Вы успешно зарегистрированы на соревнование!');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to register for competition:', err);
-      const errorMessage = err.response?.data?.detail || 'Не удалось зарегистрироваться на соревнование.';
-      toast.error(errorMessage);
+      toast.error('Не удалось зарегистрироваться на соревнование.');
     } finally {
       setIsRegistering(false);
-    }
-  };
-  
-  // Handle team creation
-  const handleCreateTeam = async () => {
-    if (!id || !isAuthenticated || !teamName.trim()) return;
-    
-    try {
-      setIsCreatingTeam(true);
-      const teamData: TeamRegistrationPayload = { name: teamName.trim() };
-      const newTeam = await competitionService.createTeam(id, teamData);
-      setTeams([...teams, newTeam]);
-      setIsRegistered(true);
-      setTeamName('');
-      setShowTeamDialog(false);
-      toast.success('Команда успешно создана!');
-    } catch (err: any) {
-      console.error('Failed to create team:', err);
-      const errorMessage = err.response?.data?.detail || 'Не удалось создать команду.';
-      toast.error(errorMessage);
-    } finally {
-      setIsCreatingTeam(false);
-    }
-  };
-  
-  // Load team members
-  const handleViewTeamMembers = async (team: Team) => {
-    setSelectedTeam(team);
-    
-    try {
-      const members = await competitionService.getTeamMembers(team.id);
-      setTeamMembers(members);
-    } catch (error) {
-      console.error('Failed to fetch team members', error);
-      toast.error('Не удалось загрузить участников команды.');
-    }
-  };
-
-  // Helper function to get status display information
-  const getStatusInfo = (status: CompetitionStatus) => {
-    switch (status) {
-      case 'upcoming':
-        return { label: 'Предстоит', color: 'bg-blue-100 text-blue-800' };
-      case 'registration_open':
-        return { label: 'Регистрация открыта', color: 'bg-green-100 text-green-800' };
-      case 'registration_closed':
-        return { label: 'Регистрация закрыта', color: 'bg-yellow-100 text-yellow-800' };
-      case 'ongoing':
-        return { label: 'В процессе', color: 'bg-purple-100 text-purple-800' };
-      case 'finished':
-        return { label: 'Завершено', color: 'bg-gray-100 text-gray-800' };
-      case 'results_published':
-        return { label: 'Результаты опубликованы', color: 'bg-indigo-100 text-indigo-800' };
-      default:
-        return { label: 'Неизвестный статус', color: 'bg-gray-100 text-gray-800' };
     }
   };
 
@@ -179,22 +91,8 @@ export const CompetitionDetailPage = () => {
     console.error('Failed to parse external links:', err);
   }
 
-  // Check if registration is open based on status
-  const canRegister = competition.status === 'registration_open';
-  
-  // Get status display info
-  const statusInfo = getStatusInfo(competition.status);
-  
-  // Determine if user can register (not organizer, not already registered, registration is open)
-  const userCanRegister = isAuthenticated && canRegister && !isRegistered && !isOrganizer;
-  
-  // Get registration button text
-  const getRegistrationButtonText = () => {
-    if (isRegistering) return 'Регистрация...';
-    if (isRegistered) return 'Вы зарегистрированы';
-    if (isOrganizer) return 'Вы организатор';
-    return 'Зарегистрироваться';
-  };
+  // Check if registration is open
+  const isRegistrationOpen = isDateBetween(competition.reg_start_at, competition.reg_end_at);
   
   return (
     <div className="space-y-8">
@@ -206,9 +104,19 @@ export const CompetitionDetailPage = () => {
       {/* Competition header */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex justify-between items-start">
-          <h1 className="text-3xl font-bold truncate max-w-[70%]">{competition.title}</h1>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
-            {statusInfo.label}
+          <h1 className="text-3xl font-bold">{competition.title}</h1>
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+            competition.status === 'registration_open' ? 'bg-green-100 text-green-800' :
+            competition.status === 'in_progress' ? 'bg-purple-100 text-purple-800' :
+            competition.status === 'results_published' ? 'bg-indigo-100 text-indigo-800' :
+            'bg-gray-100 text-gray-800'
+          }`}>
+            {competition.status === 'registration_open' ? 'Регистрация открыта' :
+             competition.status === 'registration_closed' ? 'Регистрация закрыта' :
+             competition.status === 'in_progress' ? 'В процессе' :
+             competition.status === 'completed' ? 'Завершено' :
+             competition.status === 'results_published' ? 'Результаты опубликованы' :
+             'Предстоит'}
           </span>
         </div>
         
@@ -264,105 +172,22 @@ export const CompetitionDetailPage = () => {
               </div>
             </div>
             
-            {/* Registration buttons */}
-            {isAuthenticated && (
+            {/* Registration button */}
+            {isAuthenticated && competition.status === 'registration_open' && isRegistrationOpen && (
               <div className="mt-6">
-                {competition.type === 'individual' ? (
-                  <Button 
-                    onClick={handleRegister}
-                    disabled={isRegistering || isRegistered || isOrganizer || !canRegister}
-                    className="w-full"
-                  >
-                    {getRegistrationButtonText()}
-                  </Button>
-                ) : competition.type === 'team' ? (
-                  <>
-                    <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
-                      <DialogTrigger asChild>
-                        <Button 
-                          disabled={isRegistering || isRegistered || isOrganizer || !canRegister}
-                          className="w-full"
-                        >
-                          {getRegistrationButtonText()}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Создание команды</DialogTitle>
-                          <DialogDescription>
-                            Введите название вашей команды для участия в соревновании.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <label htmlFor="team-name" className="text-sm font-medium">Название команды</label>
-                            <Input
-                              id="team-name"
-                              placeholder="Введите название команды"
-                              value={teamName}
-                              onChange={(e) => setTeamName(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button onClick={() => setShowTeamDialog(false)} variant="outline">Отмена</Button>
-                          <Button 
-                            onClick={handleCreateTeam}
-                            disabled={isCreatingTeam || !teamName.trim()}
-                          >
-                            {isCreatingTeam ? 'Создание...' : 'Создать команду'}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </>
-                ) : null}
-                
-                {!canRegister && !isRegistered && !isOrganizer && (
-                  <p className="text-sm text-gray-500 mt-2 text-center">
-                    Регистрация в настоящее время недоступна
-                  </p>
-                )}
+                <Button 
+                  onClick={handleRegister}
+                  disabled={isRegistering || isRegistered}
+                  className="w-full"
+                >
+                  {isRegistering ? 'Регистрация...' : 
+                   isRegistered ? 'Вы зарегистрированы' : 'Зарегистрироваться'}
+                </Button>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Teams section for team competitions */}
-      {competition.type === 'team' && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-bold mb-4">Команды</h2>
-          {teams.length === 0 ? (
-            <p className="text-center py-6 text-gray-500">Пока нет зарегистрированных команд.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {teams.map(team => (
-                <div key={team.id} className="border rounded-md p-4 hover:bg-gray-50 cursor-pointer" onClick={() => handleViewTeamMembers(team)}>
-                  <h3 className="font-medium">{team.name}</h3>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {selectedTeam && (
-            <div className="mt-6">
-              <h3 className="text-xl font-semibold mb-2">Состав команды: {selectedTeam.name}</h3>
-              {teamMembers.length === 0 ? (
-                <p>В команде пока нет участников.</p>
-              ) : (
-                <ul className="list-disc pl-6">
-                  {teamMembers.map(member => (
-                    <li key={member.user_id} className="mb-1">
-                      {member.first_name} {member.last_name} {member.username ? `(@${member.username})` : ''}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Results section */}
       {competition.status === 'results_published' && (

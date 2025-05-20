@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { competitionService } from '@/api/competitionService';
-import { CompetitionDetail, Participant, ResultUpload, ResultsUploadPayload, Team, TeamMember } from '@/types/api';
+import { CompetitionDetail, Participant, ResultUpload, ResultsUploadPayload } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -16,17 +16,15 @@ export const ManageCompetitionPage = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isLoadingParticipants, setIsLoadingParticipants] = useState<boolean>(false);
-  const [teams, setTeams] = useState<Team[]>([]);
   
   const [results, setResults] = useState<ResultUpload[]>([]);
   const [isSubmittingResults, setIsSubmittingResults] = useState<boolean>(false);
   const [isPublishingResults, setIsPublishingResults] = useState<boolean>(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
 
-  // Fetch competition
+  // Fetch competition and participants
   useEffect(() => {
-    const fetchCompetition = async () => {
+    const fetchData = async () => {
       if (!id) return;
       
       try {
@@ -35,53 +33,22 @@ export const ManageCompetitionPage = () => {
         // Fetch competition details
         const competitionData = await competitionService.getCompetitionById(id);
         setCompetition(competitionData);
+        
+        // Fetch participants
+        const participantsData = await competitionService.getCompetitionParticipants(id);
+        setParticipants(participantsData);
+        
         setError(null);
       } catch (err) {
-        console.error('Failed to fetch competition:', err);
+        console.error('Failed to fetch data:', err);
         setError('Не удалось загрузить данные соревнования.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchCompetition();
+    fetchData();
   }, [id]);
-
-  // Fetch participants separately to avoid race conditions
-  useEffect(() => {
-    const fetchParticipants = async () => {
-      if (!id || !competition) return;
-      
-      try {
-        setIsLoadingParticipants(true);
-        
-        // Fetch participants
-        const participantsData = await competitionService.getCompetitionParticipants(id);
-        console.log('Fetched participants:', participantsData);
-        setParticipants(participantsData);
-        
-        // Fetch teams if it's a team competition
-        if (competition.type === 'team') {
-          try {
-            const teamsData = await competitionService.getCompetitionTeams(id);
-            setTeams(teamsData);
-          } catch (error) {
-            console.error('Failed to fetch teams:', error);
-          }
-        }
-        
-      } catch (err) {
-        console.error('Failed to fetch participants:', err);
-        toast.error('Не удалось загрузить список участников.');
-      } finally {
-        setIsLoadingParticipants(false);
-      }
-    };
-
-    if (competition) {
-      fetchParticipants();
-    }
-  }, [id, competition]);
 
   // Handle file input change for CSV upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,7 +182,7 @@ export const ManageCompetitionPage = () => {
       {/* Competition details summary */}
       <Card>
         <CardHeader>
-          <CardTitle className="truncate" title={competition.title}>{competition.title}</CardTitle>
+          <CardTitle>{competition.title}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -230,14 +197,14 @@ export const ManageCompetitionPage = () => {
               <p className="mt-1">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                   competition.status === 'registration_open' ? 'bg-green-100 text-green-800' :
-                  competition.status === 'ongoing' ? 'bg-purple-100 text-purple-800' :
+                  competition.status === 'in_progress' ? 'bg-purple-100 text-purple-800' :
                   competition.status === 'results_published' ? 'bg-indigo-100 text-indigo-800' :
                   'bg-gray-100 text-gray-800'
                 }`}>
                   {competition.status === 'registration_open' ? 'Регистрация открыта' :
                    competition.status === 'registration_closed' ? 'Регистрация закрыта' :
-                   competition.status === 'ongoing' ? 'В процессе' :
-                   competition.status === 'finished' ? 'Завершено' :
+                   competition.status === 'in_progress' ? 'В процессе' :
+                   competition.status === 'completed' ? 'Завершено' :
                    competition.status === 'results_published' ? 'Результаты опубликованы' :
                    'Предстоит'}
                 </span>
@@ -260,9 +227,7 @@ export const ManageCompetitionPage = () => {
           <CardTitle>Участники ({participants.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoadingParticipants ? (
-            <p className="text-center py-6">Загрузка участников...</p>
-          ) : participants.length === 0 ? (
+          {participants.length === 0 ? (
             <p className="text-center py-6 text-gray-500">На данный момент нет зарегистрированных участников.</p>
           ) : (
             <div className="border rounded-md">
@@ -289,101 +254,56 @@ export const ManageCompetitionPage = () => {
         </CardContent>
       </Card>
       
-      {/* Teams section for team competitions */}
-      {competition.type === 'team' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Команды ({teams.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingParticipants ? (
-              <p className="text-center py-6">Загрузка команд...</p>
-            ) : teams.length === 0 ? (
-              <p className="text-center py-6 text-gray-500">На данный момент нет зарегистрированных команд.</p>
-            ) : (
-              <div className="border rounded-md">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Название</TableHead>
-                      <TableHead>Капитан</TableHead>
-                      <TableHead>Создана</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {teams.map((team) => (
-                      <TableRow key={team.id}>
-                        <TableCell className="font-mono text-xs">{team.id}</TableCell>
-                        <TableCell>{team.name}</TableCell>
-                        <TableCell>{team.captain_id}</TableCell>
-                        <TableCell>{formatDate(team.created_at)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-      
-      {/* Results Upload Section */}
+      {/* Results section */}
       <Card>
         <CardHeader>
-          <CardTitle>Загрузка результатов</CardTitle>
+          <CardTitle>Управление результатами</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          {competition.status === 'results_published' ? (
+            <div className="bg-green-50 border border-green-200 rounded-md p-4 text-green-800">
+              Результаты опубликованы. Чтобы обновить результаты, загрузите новый файл и опубликуйте результаты снова.
+            </div>
+          ) : null}
+          
           <div className="space-y-4">
             <div>
-              <p className="text-sm mb-2">1. Загрузите CSV файл с результатами участников:</p>
-              <Input 
-                type="file" 
-                accept=".csv" 
-                onChange={handleFileChange} 
-                className="max-w-md"
-              />
-            </div>
-            
-            {csvFile && (
-              <div>
-                <Button onClick={processResultsFile} variant="outline" className="mr-2">
+              <h3 className="text-lg font-medium mb-2">Загрузка результатов</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Загрузите CSV файл с результатами. Формат файла: <code>username,result,rank</code> (по одной записи на строку).
+              </p>
+              
+              <div className="flex items-center gap-4">
+                <Input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  className="max-w-sm"
+                />
+                <Button onClick={processResultsFile} disabled={!csvFile}>
                   Обработать файл
                 </Button>
-                <span className="text-sm text-gray-500">{csvFile.name}</span>
               </div>
-            )}
-            
-            {results.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm">Обработано результатов: <span className="font-semibold">{results.length}</span></p>
-                <div className="flex space-x-3">
-                  <Button 
-                    onClick={handleUploadResults} 
-                    disabled={isSubmittingResults}
-                    variant="default"
-                  >
+              
+              {results.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm text-green-600 mb-2">Обработано результатов: {results.length}</p>
+                  <Button onClick={handleUploadResults} disabled={isSubmittingResults}>
                     {isSubmittingResults ? 'Загрузка...' : 'Загрузить результаты'}
                   </Button>
                 </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Publish Results */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Публикация результатов</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <p className="text-sm">После публикации, результаты станут видны всем участникам.</p>
-            <div className="flex space-x-3">
+              )}
+            </div>
+            
+            <div className="pt-4 border-t">
+              <h3 className="text-lg font-medium mb-2">Публикация результатов</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                После загрузки всех результатов нажмите кнопку ниже, чтобы опубликовать их. После публикации результаты станут видны всем пользователям.
+              </p>
+              
               <Button 
-                onClick={handlePublishResults}
-                disabled={isPublishingResults || competition.status === 'results_published'}
+                onClick={handlePublishResults} 
+                disabled={isPublishingResults || competition.status === 'results_published'} 
                 variant={competition.status === 'results_published' ? 'outline' : 'default'}
               >
                 {isPublishingResults ? 'Публикация...' : 

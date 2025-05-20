@@ -3,15 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Competition } from '@/types/api';
 import { formatDate } from '@/utils/dateUtils';
 import { Link } from 'react-router-dom';
-import { CalendarIcon, UsersIcon } from 'lucide-react';
 
 interface CompetitionCardProps {
   competition: Competition;
-  isRegistered?: boolean;
-  isOrganizer?: boolean;
 }
 
-export const CompetitionCard = ({ competition, isRegistered, isOrganizer }: CompetitionCardProps) => {
+export const CompetitionCard = ({ competition }: CompetitionCardProps) => {
   const { id, title, reg_start_at, reg_end_at, comp_start_at, comp_end_at, status, type } = competition;
 
   // Helper function to determine the status label and color
@@ -23,9 +20,9 @@ export const CompetitionCard = ({ competition, isRegistered, isOrganizer }: Comp
         return { label: 'Регистрация открыта', color: 'bg-green-100 text-green-800' };
       case 'registration_closed':
         return { label: 'Регистрация закрыта', color: 'bg-yellow-100 text-yellow-800' };
-      case 'ongoing':
+      case 'in_progress':
         return { label: 'В процессе', color: 'bg-purple-100 text-purple-800' };
-      case 'finished':
+      case 'completed':
         return { label: 'Завершено', color: 'bg-gray-100 text-gray-800' };
       case 'results_published':
         return { label: 'Результаты опубликованы', color: 'bg-indigo-100 text-indigo-800' };
@@ -36,92 +33,52 @@ export const CompetitionCard = ({ competition, isRegistered, isOrganizer }: Comp
 
   const statusInfo = getStatusInfo();
 
-  // Helper function to determine the competition type label and icon
-  const getTypeInfo = () => {
+  // Helper function to determine the competition type label
+  const getTypeLabel = () => {
     switch (type) {
       case 'individual':
-        return { label: 'Индивидуальное', icon: <UsersIcon size={16} className="mr-1" /> };
+        return 'Индивидуальное';
       case 'team':
-        return { label: 'Командное', icon: <UsersIcon size={16} className="mr-1" /> };
+        return 'Командное';
       default:
-        return { label: 'Другое', icon: null };
-    }
-  };
-  
-  const typeInfo = getTypeInfo();
-
-  // Format date in a more readable way (e.g. "10 июля - 15 июля 2023")
-  const formatDateRange = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    
-    const startDay = startDate.getDate();
-    const endDay = endDate.getDate();
-    
-    const startMonth = startDate.toLocaleString('ru', { month: 'long' });
-    const endMonth = endDate.toLocaleString('ru', { month: 'long' });
-    
-    const startYear = startDate.getFullYear();
-    const endYear = endDate.getFullYear();
-    
-    if (startYear !== endYear) {
-      return `${startDay} ${startMonth} ${startYear} - ${endDay} ${endMonth} ${endYear}`;
-    } else if (startMonth !== endMonth) {
-      return `${startDay} ${startMonth} - ${endDay} ${endMonth} ${startYear}`;
-    } else {
-      return `${startDay} - ${endDay} ${endMonth} ${startYear}`;
+        return 'Другое';
     }
   };
 
   return (
-    <Card className="w-full h-full flex flex-col border-2 hover:border-blue-300 transition-colors">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start space-y-1">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium mb-2 ${statusInfo.color}`}>
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-xl">{title}</CardTitle>
+            <CardDescription className="mt-2">
+              Тип: {getTypeLabel()}
+            </CardDescription>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
             {statusInfo.label}
           </span>
-          {(isRegistered || isOrganizer) && (
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              isOrganizer ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-            }`}>
-              {isOrganizer ? 'Организатор' : 'Зарегистрирован'}
-            </span>
-          )}
-        </div>
-        <div className="block">
-          <CardTitle className="text-xl line-clamp-2 min-h-[3rem]" title={title}>
-            {title}
-          </CardTitle>
-          <CardDescription className="mt-2 flex items-center">
-            {typeInfo.icon}{typeInfo.label}
-          </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="pb-2 flex-grow">
-        <div className="space-y-3">
-          <div className="flex items-start">
-            <CalendarIcon size={16} className="mt-1 mr-2 text-gray-500 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-gray-700">Регистрация</p>
-              <p className="text-sm text-gray-600">
-                {formatDateRange(reg_start_at, reg_end_at)}
-              </p>
-            </div>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-500">Регистрация</p>
+            <p className="text-sm">
+              {formatDate(reg_start_at)} - {formatDate(reg_end_at)}
+            </p>
           </div>
-          <div className="flex items-start">
-            <CalendarIcon size={16} className="mt-1 mr-2 text-gray-500 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-gray-700">Соревнование</p>
-              <p className="text-sm text-gray-600">
-                {formatDateRange(comp_start_at, comp_end_at)}
-              </p>
-            </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Соревнование</p>
+            <p className="text-sm">
+              {formatDate(comp_start_at)} - {formatDate(comp_end_at)}
+            </p>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="pt-2">
+      <CardFooter>
         <Link to={`/competitions/${id}`} className="w-full">
-          <Button className="w-full font-medium">Подробнее</Button>
+          <Button className="w-full">Подробнее</Button>
         </Link>
       </CardFooter>
     </Card>

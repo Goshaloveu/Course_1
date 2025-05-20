@@ -9,7 +9,7 @@ from sqlmodel import SQLModel
 from sqlmodel import select
 import httpx
 import asyncio
-from datetime import datetime
+
 from app.api import deps
 from app.crud import crud_competition, crud_registration, crud_result, crud_user
 from app.models.competition import Competition, CompetitionCreate, CompetitionUpdate, CompetitionRead, CompetitionStatusEnum
@@ -51,19 +51,7 @@ async def create_new_competition(
     """
     # Устанавливаем статус по умолчанию 'upcoming', если не передан
     if not competition_in.status:
-        if competition_in.reg_start_at and competition_in.reg_end_at and competition_in.comp_start_at and competition_in.comp_end_at:
-            if competition_in.reg_start_at > datetime.now():
-                competition_in.status = CompetitionStatusEnum.UPCOMING
-            elif competition_in.reg_end_at >= datetime.now():
-                competition_in.status = CompetitionStatusEnum.REGISTRATION_OPEN
-            elif competition_in.reg_end_at < datetime.now() and competition_in.comp_start_at < datetime.now():
-                competition_in.status = CompetitionStatusEnum.ONGOING
-            elif competition_in.comp_end_at < datetime.now():
-                competition_in.statOs = CompetitionStatusEnum.CLOSED
-            elif competition_in.comp_end_at >= datetime.now():
-                competition_in.status = CompetitionStatusEnum.FINISHED
-            elif competition_in.results_published_at <= datetime.now():
-                competition_in.status = CompetitionStatusEnum.RESULTS_PUBLISHED
+         competition_in.status = CompetitionStatusEnum.upcoming
 
     competition = await crud_competition.create_competition(
         session, competition_in=competition_in, organizer_id=current_user.id
@@ -94,7 +82,7 @@ async def update_existing_competition(
 
 # --- Управление Участниками и Результатами ---
 
-@router.get("/organizer/competitions/{competition_id}/participants", response_model=List[UserPublic])
+@router.get("/organizer/competitions/{competition_id}/participants", response_model=List[RegistrationReadWithUser])
 async def read_competition_participants(
     competition_id: int,
     current_user: User = Depends(deps.get_current_active_organizer),
@@ -112,19 +100,20 @@ async def read_competition_participants(
     if db_competition.organizer_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not the owner of this competition")
 
-    # Get registrations with user data
     registrations_db = await crud_registration.get_registrations_by_competition(
         session, competition_id=competition_id, skip=skip, limit=limit
     )
 
-    # Extract user data directly
+    # Преобразуем в формат ответа RegistrationReadWithUser
     participants = []
-    for registration_row in registrations_db:
-        # The rows from SQLModel query are tuples (registration, user)
-        if hasattr(registration_row, 'user') and registration_row.user is not None:
-            user = registration_row.user
-            participants.append(UserPublic.model_validate(user))
-        
+    for reg in registrations_db:
+        user_public = None
+        if reg.user: # User должен быть загружен через selectinload
+            user_public = UserPublic.model_validate(reg.user)
+
+        reg_read = RegistrationReadWithUser(registered_at=reg.registered_at, user=user_public)
+        participants.append(reg_read)
+
     return participants
 
 
